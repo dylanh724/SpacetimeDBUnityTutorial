@@ -2,8 +2,9 @@ using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
-using UnityEngine.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
+using static SpacetimeDB.Editor.PublisherMeta;
 
 namespace SpacetimeDB.Editor
 {
@@ -34,11 +35,11 @@ namespace SpacetimeDB.Editor
 
         private void initVisualTreeStyles()
         {
-            VisualTreeAsset visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(PublisherMeta.PathToUxml);
+            VisualTreeAsset visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(PathToUxml);
             visualTree.CloneTree(rootVisualElement);
 
             // Apply style via USS
-            StyleSheet styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(PublisherMeta.PathToUss);
+            StyleSheet styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(PathToUss);
             rootVisualElement.styleSheets.Add(styleSheet);
         }
 
@@ -67,16 +68,95 @@ namespace SpacetimeDB.Editor
 
 
         #region User Input Interactions
+        /// Init -> prereqs => publish => done
         private async Task OnPublishBtnClick()
         {
-            bool isSpacetimeCliInstalled = await SpacetimeCli.CheckIsSpacetimeCliInstalled();
-            if (!isSpacetimeCliInstalled)
-            {
-                publishStatusLabel.text = "Installing Spacetime CLI...";
-                SpacetimeCliResult installResult = await SpacetimeCli.InstallSpacetimeCli();
-                throw new NotImplementedException("TODO: UI Result handling");
-            }
+            setPublishStartUi();
+            await ensureSpacetimeCliInstalledAsync();
+            await publish();
+            setPublishDoneUi(); // TODO: Pass err, if any
         }
         #endregion // User Input Interactions
+        
+        
+        #region Utils
+        private async Task publish()
+        {
+            
         }
+        
+        /// Check for install => Install if !found -> Throw if err
+        private async Task ensureSpacetimeCliInstalledAsync()
+        {
+            // Check if Spacetime CLI is installed => install, if !found
+            bool isSpacetimeCliInstalled;
+            try
+            {
+                isSpacetimeCliInstalled = await SpacetimeCli.CheckIsSpacetimeCliInstalledAsync();
+            }
+            catch (Exception e)
+            {
+                updateStatus(StringStyle.Error, e.Message);
+                throw;
+            }
+            
+            if (!isSpacetimeCliInstalled)
+            {
+                // Command !found: Update status => Install now
+                publishStatusLabel.text = GetStyledStr(
+                    StringStyle.Action, 
+                    "Installing Spacetime CLI...");
+
+                SpacetimeCliResult installResult;
+                try
+                {
+                    installResult = await SpacetimeCli.InstallSpacetimeCliAsync();
+                }
+                catch (Exception e)
+                {
+                    updateStatus(StringStyle.Error, e.Message);
+                    throw;
+                }
+                
+                bool hasSpacetimeCli = !installResult.HasErr;
+                if (hasSpacetimeCli)
+                    return;
+                
+                // Critical error: Spacetime CLI !installed and failed install attempt
+                updateStatus(StringStyle.Error, "Failed to install Spacetime CLI: See logs");
+            }
+        }
+
+        /// Show a styled friendly string to UI. Errs will:
+        /// - LogError
+        /// - Enable Publish btn
+        private void updateStatus(StringStyle style, string friendlyStr)
+        {
+            publishStatusLabel.text = GetStyledStr(style, friendlyStr);
+
+            if (style != StringStyle.Error)
+                return;
+            
+            // Error:
+            Debug.LogError($"Error: {friendlyStr}");
+            publishBtn.SetEnabled(true);
+        }
+        
+        private void setPublishStartUi()
+        {
+            // Set UI
+            publishBtn.SetEnabled(false);
+            publishStatusLabel.text = GetStyledStr(
+                StringStyle.Action, 
+                "Connecting...");
+            publishStatusLabel.style.display = DisplayStyle.Flex;
+        }
+
+        private void setPublishDoneUi()
+        {
+            publishBtn.SetEnabled(true);
+            updateStatus(StringStyle.Success, "Published!");
+        }
+        #endregion // Utils
+    }
 }
