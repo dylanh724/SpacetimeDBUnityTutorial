@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/Editor/SpacetimePublisher/Publisher.uss?fileID=7433441132597879392&amp;guid=20c9b745db07f9e46bb5d740ec005974&amp;type=3#Publisher" />
+    <ui:VisualElement name="Root" style="flex-grow: 1; background-color: rgba(7, 7, 7, 0.78);">
+        <ui:VisualElement name="Header" style="height: 66px; background-image: url(&apos;project://database/Assets/Editor/SpacetimePublisher/Sprites/spacetime-logo-full.png?fileID=2800000&amp;guid=8e8298ff06b7be441bce715299b63855&amp;type=3#spacetime-logo-full&apos;); -unity-background-scale-mode: scale-to-fit; width: auto;" />
+        <ui:VisualElement name="Body" style="flex-grow: 1; height: 94px;">
+            <ui:Button text="Publish" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishBtn" style="height: 50px; -unity-font-style: bold; font-size: 16px;" />
+            <ui:Label tabindex="-1" text="{StatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishStatusLabel" style="color: rgb(229, 229, 229); font-size: 16px; -unity-text-align: upper-center; display: none;" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
