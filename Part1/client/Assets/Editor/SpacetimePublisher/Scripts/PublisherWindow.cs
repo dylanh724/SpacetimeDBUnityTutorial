@@ -11,6 +11,9 @@ namespace SpacetimeDB.Editor
     /// Binds style and click events to the Spacetime Publisher Window
     public class PublisherWindow : EditorWindow
     {
+        private Button setDirectoryBtn;
+        private Label serverModulePathTxt;
+
         private Label publishStatusLabel;
         private Button publishBtn;
 
@@ -31,6 +34,16 @@ namespace SpacetimeDB.Editor
             setUiElements();
             sanityCheckUiElements();
             setOnActionEvents();
+            revealUi();
+        }
+
+        /// There are some fields that persist, such as dir path
+        /// We'll start revealing UI depending on what we have
+        private void revealUi()
+        {
+            resetUi();
+            // TODO: Check for ServerModulePathTxt null/empty.
+            // TODO: If !empty, show publish + namebtn
         }
 
         private void initVisualTreeStyles()
@@ -45,7 +58,9 @@ namespace SpacetimeDB.Editor
 
         private void setUiElements()
         {
-            // Set
+            setDirectoryBtn = rootVisualElement.Q<Button>("SetDirectoryBtn");
+            serverModulePathTxt = rootVisualElement.Q<Label>("ServerModulePathTxt");
+
             publishStatusLabel = rootVisualElement.Q<Label>("PublishStatusLabel");
             publishBtn = rootVisualElement.Q<Button>("PublishBtn");
         }
@@ -53,7 +68,9 @@ namespace SpacetimeDB.Editor
         /// Changing implicit names can easily cause unexpected nulls
         private void sanityCheckUiElements()
         {
-            // Sanity check - 
+            Assert.IsNotNull(setDirectoryBtn, $"Expected `{nameof(setDirectoryBtn)}`");
+            Assert.IsNotNull(serverModulePathTxt, $"Expected `{nameof(serverModulePathTxt)}`");
+            
             Assert.IsNotNull(publishStatusLabel, $"Expected `{nameof(publishStatusLabel)}`");
             Assert.IsNotNull(publishBtn, $"Expected `{nameof(publishBtn)}`");
         }
@@ -63,6 +80,18 @@ namespace SpacetimeDB.Editor
         {
             publishBtn.clicked += () => 
                 _ = OnPublishBtnClick();
+            
+            setDirectoryBtn.clicked += () =>
+                _ = OnSetDirectoryBtnClick();
+        }
+
+        /// Resets the UI as if there was no persistence/input
+        /// All you should see is the "Set Directory" section
+        private void resetUi()
+        {
+            // Publish
+            publishBtn.style.display = DisplayStyle.None;
+            publishStatusLabel.style.display = DisplayStyle.None;
         }
         #endregion // Init
 
@@ -75,6 +104,29 @@ namespace SpacetimeDB.Editor
             await ensureSpacetimeCliInstalledAsync();
             await publish();
             setPublishDoneUi(); // TODO: Pass err, if any
+        }
+        
+        private async Task OnSetDirectoryBtnClick()
+        {
+            // Show folder dialog
+            string selectedPath = EditorUtility.OpenFolderPanel(
+                "Select Server Module Dir", 
+                Application.dataPath, 
+                "");
+            
+            // Cancelled?
+            if (string.IsNullOrEmpty(selectedPath))
+                return;
+            
+            // Set+Show path label, hide set dir btn
+            serverModulePathTxt.text = selectedPath;
+            serverModulePathTxt.style.display = DisplayStyle.Flex;
+            setDirectoryBtn.style.display = DisplayStyle.None;
+
+            // TODO: Show name btn, prefill with suggestion from project-name-with-dashes
+            
+            // Show btn
+            publishBtn.style.display = DisplayStyle.Flex;
         }
         #endregion // User Input Interactions
         
