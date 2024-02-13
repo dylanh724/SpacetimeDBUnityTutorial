@@ -9,7 +9,7 @@ namespace SpacetimeDB.Editor
     /// CLI action helper for PublisherWindow
     public static class SpacetimeCli
     {
-        public static async Task InstallSpacetimeCli()
+        public static async Task<SpacetimeCliResult> InstallSpacetimeCli()
         {
             throw new NotImplementedException("TODO");
         }
