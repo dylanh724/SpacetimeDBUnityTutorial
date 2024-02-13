@@ -21,20 +21,29 @@ namespace SpacetimeDB.Editor
         /// Install the SpacetimeDB CLI | https://spacetimedb.com/install 
         public static async Task<SpacetimeCliResult> InstallSpacetimeCliAsync()
         {
+            Debug.Log("Installing SpacetimeDB CLI tool...");
+            SpacetimeCliResult result; 
+            
             switch (Application.platform)
             {
                 case RuntimePlatform.WindowsEditor:
-                    return await runCliCommandAsync("iwr https://windows.spacetimedb.com -useb | iex");
+                    result = await runCliCommandAsync("powershell -Command \"iwr https://windows.spacetimedb.com -UseBasicParsing | iex\"\n");
+                    break;
                 
                 case RuntimePlatform.OSXEditor:
-                    return await runCliCommandAsync("brew install clockworklabs/tap/spacetime");
+                    result = await runCliCommandAsync("brew install clockworklabs/tap/spacetime");
+                    break;
                 
                 case RuntimePlatform.LinuxEditor:
-                    return await runCliCommandAsync("curl -sSf https://install.spacetimedb.com | sh");
+                    result = await runCliCommandAsync("curl -sSf https://install.spacetimedb.com | sh");
+                    break;
                 
                 default:
                     throw new NotImplementedException("Unsupported OS");
             }
+            
+            Debug.Log($"Installed spacetimeDB CLI tool | {PublisherMeta.DOCS_URL}");
+            return result;
         }
         
         public static async Task<bool> CheckIsSpacetimeCliInstalledAsync()
@@ -42,13 +51,11 @@ namespace SpacetimeDB.Editor
             SpacetimeCliResult cliResult = await runCliCommandAsync("spacetime version");
 
             bool isSpacetimeCliInstalled = !cliResult.HasErr;
-            Debug.Log($"{nameof(isSpacetimeCliInstalled)}=={isSpacetimeCliInstalled}");
+            if (LOG_LEVEL == CliLogLevel.Info)
+                Debug.Log($"{nameof(isSpacetimeCliInstalled)}=={isSpacetimeCliInstalled}");
 
             return isSpacetimeCliInstalled;
         }
-
-        private static async Task printDir() =>
-            _ = await runCliCommandAsync("pwd");
         
         private static async Task<SpacetimeCliResult> runCliCommandAsync(string argSuffix)
         {
@@ -85,7 +92,9 @@ namespace SpacetimeDB.Editor
             // Process results, log err (if any), return parsed Result 
             SpacetimeCliResult cliResult = new(output, error);
                 
-            if (cliResult.HasErr || LOG_LEVEL == CliLogLevel.Info)
+            bool hasOutput = !string.IsNullOrEmpty(output);
+            bool hasLogLevelInfoOrErr = LOG_LEVEL == CliLogLevel.Info || cliResult.HasErr; 
+            if (hasOutput && hasLogLevelInfoOrErr)
                 Debug.Log($"CLI Output: \n```\n<color=yellow>{output}</color>\n```\n");
             
             if (cliResult.HasErr)

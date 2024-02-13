@@ -128,7 +128,7 @@ namespace SpacetimeDB.Editor
         }
 
         /// Show a styled friendly string to UI. Errs will:
-        /// - LogError
+        /// - Throw an Exception
         /// - Enable Publish btn
         private void updateStatus(StringStyle style, string friendlyStr)
         {
@@ -138,8 +138,8 @@ namespace SpacetimeDB.Editor
                 return;
             
             // Error:
-            Debug.LogError($"Error: {friendlyStr}");
             publishBtn.SetEnabled(true);
+            throw new Exception($"Error: {friendlyStr}");
         }
         
         private void setPublishStartUi()
