@@ -138,7 +138,7 @@ namespace SpacetimeDB.Editor
             }
             catch (Exception e)
             {
-                Debug.LogError($"Error: {e}");
+                Debug.LogError($"CliError: {e}");
                 throw;
             }
         }
@@ -211,7 +211,7 @@ namespace SpacetimeDB.Editor
             }
             catch (Exception e)
             {
-                Debug.LogError($"Error: {e}");
+                Debug.LogError($"CliError: {e}");
                 throw;
             }
             finally
@@ -241,39 +241,48 @@ namespace SpacetimeDB.Editor
         
         private async Task publish()
         {
-            _ = startProgressBarAsync(title: "Publishing...", autoHideOnComplete: false);
+            _ = startProgressBarAsync(
+                title: "Publishing...",
+                initVal: 2,
+                valIncreasePerSec: 2,
+                autoHideOnComplete: false);
+            
             publishStatusLabel.text = GetStyledStr(
                 StringStyle.Action, 
                 "Publishing Module to SpacetimeDB");
-            
-            PublishConfig publishConfig = new PublishConfig
-            {
-                ServerModuleName = nameTxt.value,
-                ServerModulePath = serverModulePathTxt.value,
-            };
 
-            SpacetimeCliResult publishResult;
+            PublishConfig publishConfig = new(nameTxt.value, serverModulePathTxt.value);
+            
+            PublishServerModuleResult publishResult;
             try
             {
                 publishResult = await SpacetimeCli.PublishServerModuleAsync(publishConfig);
             }
             catch (Exception e)
             {
-                Debug.LogError($"Error: {e}");
+                Debug.LogError($"CliError: {e}");
                 throw;
             }
             finally
             {
                 installProgressBar.style.display = DisplayStyle.None;
             }
-            
-            if (!publishResult.HasErr)
-                setReadyStatus();
-            else
+
+            if (publishResult.HasPublishErr)
             {
-                updateStatus(StringStyle.Error, "Failed to publish: See logs");
-                publishBtn.SetEnabled(true);
+                updateStatus(StringStyle.Error, publishResult.StyledFriendlyErrorMessage 
+                    ?? publishResult.CliError);
+                return;
             }
+            
+            // Success - reset UI back to normal
+            setReadyStatus();
+            setPublishResultGroupUi(publishResult);
+        }
+
+        private void setPublishResultGroupUi(PublishServerModuleResult publishResult)
+        {
+            throw new NotImplementedException("TODO: setPublishResultGroupUi w/publishResult");
         }
 
         /// Show progress bar, clamped to 5~100, updating every 1s
@@ -348,7 +357,7 @@ namespace SpacetimeDB.Editor
                 installProgressBar.style.display = DisplayStyle.None;
             }
             
-            bool hasSpacetimeCli = !installResult.HasErr;
+            bool hasSpacetimeCli = !installResult.HasCliErr;
             if (hasSpacetimeCli)
                 return;
             
@@ -356,9 +365,7 @@ namespace SpacetimeDB.Editor
             updateStatus(StringStyle.Error, "Failed to install Spacetime CLI: See logs");
         }
 
-        /// Show a styled friendly string to UI. Errs will:
-        /// - Throw an Exception
-        /// - Enable Publish btn
+        /// Show a styled friendly string to UI. Errs will enable publish btn.
         private void updateStatus(StringStyle style, string friendlyStr)
         {
             publishStatusLabel.text = GetStyledStr(style, friendlyStr);
@@ -366,9 +373,7 @@ namespace SpacetimeDB.Editor
             if (style != StringStyle.Error)
                 return;
             
-            // Error:
             publishBtn.SetEnabled(true);
-            throw new Exception($"Error: {friendlyStr}");
         }
         
         private void setPublishStartUi()

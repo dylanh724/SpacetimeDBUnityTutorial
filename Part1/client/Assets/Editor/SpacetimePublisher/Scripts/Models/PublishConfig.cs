@@ -7,13 +7,20 @@ namespace SpacetimeDB.Editor
     public class PublishConfig
     {
         /// Usage: "my-server-module-name"
-        public string ServerModuleName;
+        public readonly string ServerModuleName;
 
         /// Usage: "absolute/path/to/server/module/dir"
-        public string ServerModulePath;
+        public readonly string ServerModulePath;
 
         /// Returns what's sent to the CLI: "--project-path {path} {module-name}"
         public override string ToString() => 
             $"--project-path \"{ServerModulePath}\" {ServerModuleName}";
+        
+
+        public PublishConfig(string serverModuleName, string serverModulePath)
+        {
+            this.ServerModuleName = serverModuleName;
+            this.ServerModulePath = serverModulePath;
+        }
     }
 }

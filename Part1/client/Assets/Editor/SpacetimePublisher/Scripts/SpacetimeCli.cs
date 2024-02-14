@@ -53,7 +53,7 @@ namespace SpacetimeDB.Editor
         {
             SpacetimeCliResult cliResult = await runCliCommandAsync("spacetime version");
 
-            bool isSpacetimeCliInstalled = !cliResult.HasErr;
+            bool isSpacetimeCliInstalled = !cliResult.HasCliErr;
             if (LOG_LEVEL == CliLogLevel.Info)
                 Debug.Log($"{nameof(isSpacetimeCliInstalled)}=={isSpacetimeCliInstalled}");
 
@@ -61,17 +61,26 @@ namespace SpacetimeDB.Editor
         }
         
         /// Uses the `spacetime publish` CLI command, appending +args from UI elements
-        public static async Task<SpacetimeCliResult> PublishServerModuleAsync(PublishConfig publishConfig)
+        public static async Task<PublishServerModuleResult> PublishServerModuleAsync(PublishConfig publishConfig)
         {
             string argSuffix = $"spacetime publish {publishConfig}";
             SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
+            return onPublishServerModuleDone(cliResult);
+        }
 
-            bool isPublishSuccess = !cliResult.HasErr;
+        private static PublishServerModuleResult onPublishServerModuleDone(SpacetimeCliResult cliResult)
+        {
+            // Check for general CLI errs (that may contain false-positives for `spacetime publish`)
+            bool hasGeneralCliErr = !cliResult.HasCliErr;
             if (LOG_LEVEL == CliLogLevel.Info)
-                Debug.Log($"{nameof(isPublishSuccess)}=={isPublishSuccess}");
+                Debug.Log($"{nameof(hasGeneralCliErr)}=={hasGeneralCliErr}");
 
-            // TODO: Scrape info from content and extend SpacetimeCliResult?
-            return cliResult;
+            // Dive deeper into the context || error
+            PublishServerModuleResult publishResult = new(cliResult);
+            if (!publishResult.HasPublishErr && LOG_LEVEL == CliLogLevel.Info)
+                Debug.Log($"Server module published successfully. {publishResult}"); // json
+            
+            return publishResult;
         }
         
         private static async Task<SpacetimeCliResult> runCliCommandAsync(string argSuffix)
@@ -115,17 +124,25 @@ namespace SpacetimeDB.Editor
             
             // Process results, log err (if any), return parsed Result 
             SpacetimeCliResult cliResult = new(output, error);
-                
-            // Output Logs
-            bool hasOutput = !string.IsNullOrEmpty(output);
-            bool hasLogLevelInfoOrErr = LOG_LEVEL == CliLogLevel.Info || cliResult.HasErr; 
-            if (hasOutput && hasLogLevelInfoOrErr)
-                Debug.Log($"CLI Output: \n```\n<color=yellow>{output}</color>\n```\n");
-            
-            if (cliResult.HasErr)
-                Debug.LogError($"CLI Error: {error}");
+            logCliResults(cliResult);
 
             return cliResult;
+        }
+        
+        private static void logCliResults(SpacetimeCliResult cliResult)
+        {
+            bool hasOutput = !string.IsNullOrEmpty(cliResult.CliOutput);
+            bool hasLogLevelInfoNoErr = LOG_LEVEL == CliLogLevel.Info && !cliResult.HasCliErr;
+            string prettyOutput = $"\n```\n<color=yellow>{cliResult.CliOutput}</color>\n```\n";
+            if (hasOutput && hasLogLevelInfoNoErr)
+                Debug.Log($"{nameof(SpacetimeCliResult.CliOutput)}: {prettyOutput}");
+
+            if (cliResult.HasCliErr)
+            {
+                Debug.LogError($"CLI Output (with verbose errors): {prettyOutput}");
+                Debug.LogError($"CLI Error: {cliResult.CliError}\n" +
+                    "(For +details, see output err above)");
+            }
         }
         
         private static string getCommandPrefix()

@@ -16,7 +16,7 @@ namespace SpacetimeDB.Editor
         public static string PathToUss => $"{PUBLISHER_DIR_PATH}/Publisher.uss";
         
         public const string ACTION_COLOR_HEX = "#FFEA30"; // Corn Yellow
-        public const string ERROR_COLOR_HEX = "#ED5E2F"; // Muted Red
+        public const string ERROR_COLOR_HEX = "#ed8536"; // Muted Orange-Red
         public const string SUCCESS_COLOR_HEX = "#4CF490"; // Sea Green (from docs)
 
         

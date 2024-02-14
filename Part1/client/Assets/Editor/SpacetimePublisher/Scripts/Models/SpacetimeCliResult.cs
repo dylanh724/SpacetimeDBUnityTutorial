@@ -3,14 +3,23 @@ namespace SpacetimeDB.Editor
     /// Result from SpacetimeCli.runCliCommandAsync
     public class SpacetimeCliResult
     {
-        public readonly string Output;
-        public readonly string Error;
-        public bool HasErr => !string.IsNullOrEmpty(Error);
+        public readonly string CliOutput;
         
-        public SpacetimeCliResult(string output, string error)
+        /// This is the official error thrown by the CLI; it may not necessarily
+        /// be as helpful as a friendlier error message likely within CliOutput.
+        /// (!) Sometimes, this may not even be a "real" error. Double check output!
+        public readonly string CliError;
+        
+        /// (!) While this may be a CLI error, it could be a false positive
+        /// for what you really want to do. For example, `spacetime publish`
+        /// will succeed, but throw a CliError for `wasm-opt` not found (unoptimized build).
+        public bool HasCliErr => !string.IsNullOrEmpty(CliError);
+        
+        
+        public SpacetimeCliResult(string cliOutput, string cliError)
         {
-            Output = output;
-            Error = error;
+            this.CliOutput = cliOutput;
+            this.CliError = cliError;
         }
     }
 }
