@@ -207,9 +207,7 @@ namespace SpacetimeDB.Editor
             try
             {
                 await ensureSpacetimeCliInstalledAsync();
-                publishStatusLabel.text = GetStyledStr(
-                    StringStyle.Success, 
-                    "Ready");
+                setReadyStatus();
             }
             catch (Exception e)
             {
@@ -222,30 +220,60 @@ namespace SpacetimeDB.Editor
                 publishGroupBox.SetEnabled(true);
             }
         }
+
+        /// Sets status label to "Ready" and enables Publisher btn
+        private void setReadyStatus()
+        {
+            publishBtn.SetEnabled(true);
+            publishStatusLabel.text = GetStyledStr(
+                StringStyle.Success, 
+                "Ready");
+        }
                                     
         /// Init -> prereqs => publish => done
         /// High-level event chain handler.
         private async Task startPublishChain()
         {
             setPublishStartUi();
+            await ensureSpacetimeCliInstalledAsync(); // Sanity check
+            await publish();
+        }
+        
+        private async Task publish()
+        {
+            _ = startProgressBarAsync(title: "Publishing...", autoHideOnComplete: false);
+            publishStatusLabel.text = GetStyledStr(
+                StringStyle.Action, 
+                "Publishing Module to SpacetimeDB");
+            
+            PublishConfig publishConfig = new PublishConfig
+            {
+                ServerModuleName = nameTxt.value,
+                ServerModulePath = serverModulePathTxt.value,
+            };
 
+            SpacetimeCliResult publishResult;
             try
             {
-                await ensureSpacetimeCliInstalledAsync();
-                await publish();
+                publishResult = await SpacetimeCli.PublishServerModuleAsync(publishConfig);
             }
             catch (Exception e)
             {
                 Debug.LogError($"Error: {e}");
                 throw;
             }
-
-            setPublishDoneUi(); // TODO: Pass err, if any
-        }
-        
-        private async Task publish()
-        {
-            // TODO            
+            finally
+            {
+                installProgressBar.style.display = DisplayStyle.None;
+            }
+            
+            if (!publishResult.HasErr)
+                setReadyStatus();
+            else
+            {
+                updateStatus(StringStyle.Error, "Failed to publish: See logs");
+                publishBtn.SetEnabled(true);
+            }
         }
 
         /// Show progress bar, clamped to 5~100, updating every 1s
@@ -351,12 +379,6 @@ namespace SpacetimeDB.Editor
                 StringStyle.Action, 
                 "Connecting...");
             publishStatusLabel.style.display = DisplayStyle.Flex;
-        }
-
-        private void setPublishDoneUi()
-        {
-            publishBtn.SetEnabled(true);
-            updateStatus(StringStyle.Success, "Published!");
         }
         #endregion // Action Utils
         

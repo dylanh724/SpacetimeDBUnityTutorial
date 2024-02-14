@@ -9,6 +9,7 @@ namespace SpacetimeDB.Editor
     /// CLI action helper for PublisherWindow
     public static class SpacetimeCli
     {
+        #region Static Options
         /// TODO: Possibly integrate this within the PublisherWindow?
         private const CliLogLevel LOG_LEVEL = CliLogLevel.Info;
         
@@ -17,6 +18,8 @@ namespace SpacetimeDB.Editor
             Info,
             Error,
         }
+        #endregion // Static Options
+
         
         /// Install the SpacetimeDB CLI | https://spacetimedb.com/install 
         public static async Task<SpacetimeCliResult> InstallSpacetimeCliAsync()
@@ -57,20 +60,41 @@ namespace SpacetimeDB.Editor
             return isSpacetimeCliInstalled;
         }
         
+        /// Uses the `spacetime publish` CLI command, appending +args from UI elements
+        public static async Task<SpacetimeCliResult> PublishServerModuleAsync(PublishConfig publishConfig)
+        {
+            string argSuffix = $"spacetime publish {publishConfig}";
+            SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
+
+            bool isPublishSuccess = !cliResult.HasErr;
+            if (LOG_LEVEL == CliLogLevel.Info)
+                Debug.Log($"{nameof(isPublishSuccess)}=={isPublishSuccess}");
+
+            // TODO: Scrape info from content and extend SpacetimeCliResult?
+            return cliResult;
+        }
+        
         private static async Task<SpacetimeCliResult> runCliCommandAsync(string argSuffix)
         {
             string terminal = getTerminalPrefix(); // Cross-Platform terminal: cmd || bash
             string argPrefix = getCommandPrefix();
-            string parsedArgs = $"{argPrefix} \"{argSuffix}\"";
+            string fullParsedArgs = $"{argPrefix} \"{argSuffix}\"";
 
             using Process process = new();
             process.StartInfo.FileName = terminal;
-            process.StartInfo.Arguments = parsedArgs;
+            process.StartInfo.Arguments = fullParsedArgs;
             process.StartInfo.RedirectStandardError = true;
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.CreateNoWindow = true;
 
+            // Input Logs
+            if (LOG_LEVEL == CliLogLevel.Info)
+            {
+                Debug.Log("CLI Input: \n```\n<color=yellow>" +
+                    $"{terminal} {fullParsedArgs}</color>\n```\n");
+            }
+            
             // Results
             string output = null;
             string error = null;
@@ -92,6 +116,7 @@ namespace SpacetimeDB.Editor
             // Process results, log err (if any), return parsed Result 
             SpacetimeCliResult cliResult = new(output, error);
                 
+            // Output Logs
             bool hasOutput = !string.IsNullOrEmpty(output);
             bool hasLogLevelInfoOrErr = LOG_LEVEL == CliLogLevel.Info || cliResult.HasErr; 
             if (hasOutput && hasLogLevelInfoOrErr)
