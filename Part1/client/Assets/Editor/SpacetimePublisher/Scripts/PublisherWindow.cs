@@ -24,6 +24,7 @@ namespace SpacetimeDB.Editor
         private Button publishBtn;
         
         private Action publishBtnClickAction;
+        private Foldout publishResultFoldout;
 
         #region Init
         /// Show the publisher window via top Menu item
@@ -101,6 +102,7 @@ namespace SpacetimeDB.Editor
             installProgressBar = rootVisualElement.Q<ProgressBar>("InstallProgressBar");
             publishStatusLabel = rootVisualElement.Q<Label>("PublishStatusLabel");
             publishBtn = rootVisualElement.Q<Button>("PublishBtn");
+            publishResultFoldout = rootVisualElement.Q<Foldout>("PublishResultFoldout");
         }
 
         /// Changing implicit names can easily cause unexpected nulls
@@ -117,6 +119,7 @@ namespace SpacetimeDB.Editor
             Assert.IsNotNull(installProgressBar, $"Expected `{nameof(installProgressBar)}`");
             Assert.IsNotNull(publishStatusLabel, $"Expected `{nameof(publishStatusLabel)}`");
             Assert.IsNotNull(publishBtn, $"Expected `{nameof(publishBtn)}`");
+            Assert.IsNotNull(publishResultFoldout, $"Expected `{nameof(publishResultFoldout)}`");
         }
 
         /// Curry sync Actions from UI => to async Tasks
@@ -191,6 +194,7 @@ namespace SpacetimeDB.Editor
             publishGroupBox.style.display = DisplayStyle.None;
             installProgressBar.style.display = DisplayStyle.None;
             publishStatusLabel.style.display = DisplayStyle.None;
+            publishResultFoldout.style.display = DisplayStyle.None;
         }
         
         /// This will reveal the group and initially check for the spacetime cli tool
@@ -236,10 +240,26 @@ namespace SpacetimeDB.Editor
         {
             setPublishStartUi();
             await ensureSpacetimeCliInstalledAsync(); // Sanity check
-            await publish();
+            
+            PublishServerModuleResult publishResult = await publish();
+            onPublishDone(publishResult);
         }
-        
-        private async Task publish()
+
+        private void onPublishDone(PublishServerModuleResult publishResult)
+        {
+            if (publishResult.HasPublishErr)
+            {
+                updateStatus(StringStyle.Error, publishResult.StyledFriendlyErrorMessage 
+                    ?? publishResult.CliError);
+                return;
+            }
+            
+            // Success - reset UI back to normal
+            setReadyStatus();
+            setPublishResultGroupUi(publishResult);
+        }
+
+        private async Task<PublishServerModuleResult> publish()
         {
             _ = startProgressBarAsync(
                 title: "Publishing...",
@@ -268,20 +288,13 @@ namespace SpacetimeDB.Editor
                 installProgressBar.style.display = DisplayStyle.None;
             }
 
-            if (publishResult.HasPublishErr)
-            {
-                updateStatus(StringStyle.Error, publishResult.StyledFriendlyErrorMessage 
-                    ?? publishResult.CliError);
-                return;
-            }
-            
-            // Success - reset UI back to normal
-            setReadyStatus();
-            setPublishResultGroupUi(publishResult);
+            return publishResult;
         }
 
         private void setPublishResultGroupUi(PublishServerModuleResult publishResult)
         {
+            publishResultFoldout.style.display = DisplayStyle.Flex;
+            publishResultFoldout.value = false;
             throw new NotImplementedException("TODO: setPublishResultGroupUi w/publishResult");
         }
 
