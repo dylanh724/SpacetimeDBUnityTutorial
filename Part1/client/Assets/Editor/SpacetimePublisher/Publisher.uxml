@@ -4,12 +4,17 @@
         <ui:VisualElement name="Header" style="height: 66px; background-image: url(&apos;project://database/Assets/Editor/SpacetimePublisher/Sprites/spacetime-logo-full.png?fileID=2800000&amp;guid=8e8298ff06b7be441bce715299b63855&amp;type=3#spacetime-logo-full&apos;); -unity-background-scale-mode: scale-to-fit; width: auto;" />
         <ui:VisualElement name="Spacer15" style="height: 15px;" />
         <ui:VisualElement name="Body" style="flex-grow: 1; height: 94px;">
-            <ui:Label tabindex="-1" text="Server Module Path:" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PathLabel" style="font-size: 16px; -unity-text-align: upper-center; color: rgb(76, 244, 144); -unity-font-style: bold;" />
-            <ui:Button text="Set Directory" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PathSetDirectoryBtn" style="-unity-font-style: normal; font-size: 14px; height: 25px;" />
-            <ui:Label tabindex="-1" text="{ServerModulePathTxt}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ServerModulePathTxt" enable-rich-text="true" view-data-key="ServerModulePathTxt" style="font-size: 14px; -unity-text-align: upper-center; color: rgb(255, 255, 255);" />
-            <ui:VisualElement name="Spacer30" style="height: 30px;" />
-            <ui:Button text="Publish" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishBtn" style="height: 50px; -unity-font-style: bold; font-size: 16px; display: flex;" />
-            <ui:Label tabindex="-1" text="{StatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishStatusLabel" style="color: rgb(229, 229, 229); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
+            <ui:GroupBox name="NameGroupBox">
+                <ui:TextField picking-mode="Ignore" label="Server Module Name" name="NameTxt" tooltip="Choose a unique-dashified-name. Leave empty to use your project name." view-data-key="NameTxt" style="color: rgb(76, 244, 144); -unity-font-style: normal;" />
+            </ui:GroupBox>
+            <ui:GroupBox name="PathGroupBox">
+                <ui:TextField picking-mode="Ignore" label="Server Module Path  " value="C:\repos\work\Spacetime\SpacetimeDBUnityTutorial\Part1\client\Assets" name="PathTxt" multiline="true" tooltip="Click the &quot;Browse&quot; button below or paste a path/to/your/server module" view-data-key="PathTxt" style="white-space: normal; text-overflow: ellipsis;" />
+                <ui:Button text="..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="PathSetDirectoryBtn" tooltip="Browse for your server module project dir path" style="-unity-font-style: normal; font-size: 28px; height: 25px; -unity-text-align: lower-center; padding-bottom: 2px;" />
+            </ui:GroupBox>
+            <ui:GroupBox name="PublishGroupBox">
+                <ui:Button text="Publish" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishBtn" tooltip="This will issue a `spacetime publish` using your module name+path" style="height: 50px; -unity-font-style: bold; font-size: 16px; display: flex;" />
+                <ui:Label tabindex="-1" text="{StatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishStatusLabel" style="color: rgb(229, 229, 229); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
+            </ui:GroupBox>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

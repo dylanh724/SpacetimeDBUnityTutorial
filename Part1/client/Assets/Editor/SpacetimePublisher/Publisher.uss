@@ -1,2 +1,7 @@
 .wrapper {
 }
+
+Label {
+    color: rgb(76, 244, 144);
+    -unity-text-align: upper-left;
+}

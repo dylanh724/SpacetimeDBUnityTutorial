@@ -11,12 +11,18 @@ namespace SpacetimeDB.Editor
     /// Binds style and click events to the Spacetime Publisher Window
     public class PublisherWindow : EditorWindow
     {
-        private Button setDirectoryBtn;
-        private Label serverModulePathTxt;
+        private GroupBox setupGroupBox;
+        private Button setDirectoryBtn; // "Browse"
+        private TextField serverModulePathTxt;
+        
+        private GroupBox nameGroupBox;
+        private TextField nameTxt;
 
+        private GroupBox publishGroupBox;
         private Label publishStatusLabel;
         private Button publishBtn;
-
+        
+        private Action publishBtnClickAction;
 
         #region Init
         /// Show the publisher window via top Menu item
@@ -27,23 +33,85 @@ namespace SpacetimeDB.Editor
             window.titleContent = new GUIContent("Publisher");
         }
 
-        /// Add style to the UI window; subscribe to click actions
+        /// Add style to the UI window; subscribe to click actions.
+        /// High-level event chain handler.
         public void CreateGUI()
         {
+            // Init styles, bind fields to ui, sub to events
             initVisualTreeStyles();
             setUiElements();
             sanityCheckUiElements();
+
+            // Fields set from here
+            resetUi();
+            setDynamicUi();
             setOnActionEvents();
-            revealUi();
         }
 
-        /// There are some fields that persist, such as dir path
-        /// We'll start revealing UI depending on what we have
-        private void revealUi()
+        /// Dynamically sets a dashified-project-name placeholder, if empty
+        private void suggestModuleNameIfEmpty()
         {
-            resetUi();
-            // TODO: Check for ServerModulePathTxt null/empty.
-            // TODO: If !empty, show publish + namebtn
+            // Set the server module name placeholder text dynamically, based on the project name
+            // Replace non-alphanumeric chars with dashes
+            bool hasName = !string.IsNullOrEmpty(nameTxt.value);
+            if (hasName)
+                return; // Keep whatever the user customized
+            
+            // Prefix "unity-", dashify the name, replace "client" with "server (if found).
+            string unityProjectName = $"unity-{Application.productName.ToLowerInvariant()}";
+            string projectNameDashed = System.Text.RegularExpressions.Regex
+                .Replace(unityProjectName, @"[^a-z0-9]", "-")
+                .Replace("client", "server");
+            
+            nameTxt.value = projectNameDashed;
+        }
+
+        /// Dynamically set/reveal UI based on persistence
+        private void setDynamicUi()
+        {
+            suggestModuleNameIfEmpty();
+            
+            // ServerModulePathTxt persists: If previously entered, show the publish group
+            bool hasPathSet = !string.IsNullOrEmpty(serverModulePathTxt.value);
+            if (hasPathSet)
+                revealPublisherGroupUiAsync();
+        }
+
+        /// This will reveal the group and initially check for the spacetime cli tool
+        private async void revealPublisherGroupUiAsync()
+        {
+            // Show, but disable the publish group to check/install Spacetime CLI tool
+            publishGroupBox.SetEnabled(false);
+            publishStatusLabel.style.display = DisplayStyle.Flex;
+            publishGroupBox.style.display = DisplayStyle.Flex;
+            
+            // Check/install for spacetime cli tool async =>
+            try
+            {
+                await ensureSpacetimeCliInstalledAsync();
+                publishStatusLabel.text = GetStyledStr(
+                    StringStyle.Success, 
+                    "Ready");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
+            finally
+            {
+                // Reenable, no matter what, so we can try again if we want to
+                publishGroupBox.SetEnabled(true);
+            }
+        }
+
+        /// - Set to the initial state as if no inputs were set.
+        /// - This exists so we can show all ui elements simultaneously in the
+        ///   ui builder for convenience.
+        private void resetUi()
+        {
+            publishGroupBox.style.display = DisplayStyle.None;
+            publishStatusLabel.style.display = DisplayStyle.None;
         }
 
         private void initVisualTreeStyles()
@@ -58,9 +126,14 @@ namespace SpacetimeDB.Editor
 
         private void setUiElements()
         {
-            setDirectoryBtn = rootVisualElement.Q<Button>("SetDirectoryBtn");
-            serverModulePathTxt = rootVisualElement.Q<Label>("ServerModulePathTxt");
+            setupGroupBox = rootVisualElement.Q<GroupBox>("PathGroupBox");
+            setDirectoryBtn = rootVisualElement.Q<Button>("PathSetDirectoryBtn");
+            serverModulePathTxt = rootVisualElement.Q<TextField>("PathTxt");
+            
+            nameGroupBox = rootVisualElement.Q<GroupBox>("NameGroupBox");
+            nameTxt = rootVisualElement.Q<TextField>("NameTxt");
 
+            publishGroupBox = rootVisualElement.Q<GroupBox>("PublishGroupBox");
             publishStatusLabel = rootVisualElement.Q<Label>("PublishStatusLabel");
             publishBtn = rootVisualElement.Q<Button>("PublishBtn");
         }
@@ -68,45 +141,64 @@ namespace SpacetimeDB.Editor
         /// Changing implicit names can easily cause unexpected nulls
         private void sanityCheckUiElements()
         {
+            Assert.IsNotNull(setupGroupBox, $"Expected `{nameof(setupGroupBox)}`");
             Assert.IsNotNull(setDirectoryBtn, $"Expected `{nameof(setDirectoryBtn)}`");
             Assert.IsNotNull(serverModulePathTxt, $"Expected `{nameof(serverModulePathTxt)}`");
             
+            Assert.IsNotNull(nameGroupBox, $"Expected `{nameof(nameGroupBox)}`");
+            Assert.IsNotNull(nameTxt, $"Expected `{nameof(nameTxt)}`");
+            
+            Assert.IsNotNull(publishGroupBox, $"Expected `{nameof(publishGroupBox)}`");
             Assert.IsNotNull(publishStatusLabel, $"Expected `{nameof(publishStatusLabel)}`");
             Assert.IsNotNull(publishBtn, $"Expected `{nameof(publishBtn)}`");
         }
+        
+        /// Curries to async task; declared so we can cleanly unregister it later
+
 
         /// Curry sync Actions from UI => to async Tasks
         private void setOnActionEvents()
         {
-            publishBtn.clicked += () => 
-                _ = OnPublishBtnClick();
-            
-            setDirectoryBtn.clicked += () =>
-                _ = OnSetDirectoryBtnClick();
-        }
-
-        /// Resets the UI as if there was no persistence/input
-        /// All you should see is the "Set Directory" section
-        private void resetUi()
-        {
-            // Publish
-            publishBtn.style.display = DisplayStyle.None;
-            publishStatusLabel.style.display = DisplayStyle.None;
-        }
-        #endregion // Init
-
-
-        #region User Input Interactions
-        /// Init -> prereqs => publish => done
-        private async Task OnPublishBtnClick()
-        {
-            setPublishStartUi();
-            await ensureSpacetimeCliInstalledAsync();
-            await publish();
-            setPublishDoneUi(); // TODO: Pass err, if any
+            serverModulePathTxt.RegisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
+            setDirectoryBtn.clicked += onSetDirectoryBtnClick;
+            nameTxt.RegisterCallback<FocusOutEvent>(onNameTxtFocusOut);
+            publishBtn.clicked += onPublishBtnClickAsync;
         }
         
-        private async Task OnSetDirectoryBtnClick()
+        /// Curried to an async Task, wrapped this way so
+        /// we can unsubscribe and for better err handling 
+        private async void onPublishBtnClickAsync()
+        {
+            try
+            {
+                await startPublishChain();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
+        }
+        #endregion // Init
+        
+        
+        #region Direct UI Interaction Callbacks
+        /// Toggle next section if !null
+        private void onServerModulePathTxtFocusOut(FocusOutEvent evt)
+        {
+            bool hasPathSet = !string.IsNullOrEmpty(serverModulePathTxt.value);
+            if (hasPathSet)
+                revealPublisherGroupUiAsync();
+            else
+                publishGroupBox.style.display = DisplayStyle.None;
+        }
+        
+        /// Explicitly declared and curried so we can unsubscribe
+        private void onNameTxtFocusOut(FocusOutEvent evt) =>
+            suggestModuleNameIfEmpty();
+        
+        /// Show folder dialog -> Set path label
+        private void onSetDirectoryBtnClick()
         {
             // Show folder dialog
             string selectedPath = EditorUtility.OpenFolderPanel(
@@ -118,28 +210,48 @@ namespace SpacetimeDB.Editor
             if (string.IsNullOrEmpty(selectedPath))
                 return;
             
-            // Set+Show path label, hide set dir btn
-            serverModulePathTxt.text = selectedPath;
-            serverModulePathTxt.style.display = DisplayStyle.Flex;
-            setDirectoryBtn.style.display = DisplayStyle.None;
+            // Set path label to selected path to reflect UI
+            serverModulePathTxt.value = selectedPath;
 
-            // TODO: Show name btn, prefill with suggestion from project-name-with-dashes
-            
-            // Show btn
-            publishBtn.style.display = DisplayStyle.Flex;
+            // Reveal the next group
+            revealPublisherGroupUiAsync();
         }
-        #endregion // User Input Interactions
+        #endregion // Direct UI Interaction Callbacks
         
         
-        #region Utils
+        #region Action Utils
+        /// Init -> prereqs => publish => done
+        /// High-level event chain handler.
+        private async Task startPublishChain()
+        {
+            setPublishStartUi();
+
+            try
+            {
+                await ensureSpacetimeCliInstalledAsync();
+                await publish();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
+
+            setPublishDoneUi(); // TODO: Pass err, if any
+        }
+        
         private async Task publish()
         {
-            
+            // TODO            
         }
         
         /// Check for install => Install if !found -> Throw if err
         private async Task ensureSpacetimeCliInstalledAsync()
         {
+            publishStatusLabel.text = GetStyledStr(
+                StringStyle.Action, 
+                "Checking for Spacetime CLI tool...");
+            
             // Check if Spacetime CLI is installed => install, if !found
             bool isSpacetimeCliInstalled;
             try
@@ -209,6 +321,20 @@ namespace SpacetimeDB.Editor
             publishBtn.SetEnabled(true);
             updateStatus(StringStyle.Success, "Published!");
         }
-        #endregion // Utils
+        #endregion // Action Utils
+        
+        
+        #region Cleanup
+        /// This should parity the opposite of setOnActionEvents()
+        private void unsetOnActionEvents()
+        {
+            serverModulePathTxt.UnregisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
+            setDirectoryBtn.clicked -= onSetDirectoryBtnClick;
+            nameTxt.UnregisterCallback<FocusOutEvent>(onNameTxtFocusOut);
+            publishBtn.clicked -= onPublishBtnClickAsync;
+        }
+
+        private void OnDestroy() => unsetOnActionEvents();
+        #endregion // Cleanup
     }
 }
