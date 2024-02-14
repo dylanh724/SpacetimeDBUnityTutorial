@@ -13,6 +13,7 @@
             </ui:GroupBox>
             <ui:GroupBox name="PublishGroupBox">
                 <ui:Button text="Publish" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishBtn" tooltip="This will issue a `spacetime publish` using your module name+path" style="height: 50px; -unity-font-style: bold; font-size: 16px; display: flex;" />
+                <ui:ProgressBar value="5" title="Running CLI..." name="InstallProgressBar" tooltip="Allows for the `spacetime` CLI command" low-value="5" style="display: none;" />
                 <ui:Label tabindex="-1" text="{StatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishStatusLabel" style="color: rgb(229, 229, 229); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
             </ui:GroupBox>
         </ui:VisualElement>
