@@ -11,6 +11,15 @@ namespace SpacetimeDB.Editor
     /// Binds style and click events to the Spacetime Publisher Window
     public class PublisherWindow : EditorWindow
     {
+        /// <summary>
+        /// Since we have FocusOut events, this will sometimes trigger
+        /// awkwardly if you jump from input to a file picker button
+        /// </summary>
+        bool isFilePicking;
+        
+        #region UI Visual Elements
+        private Button topBannerBtn;
+        
         private GroupBox setupGroupBox;
         private Button setDirectoryBtn; // "Browse"
         private TextField serverModulePathTxt;
@@ -25,6 +34,11 @@ namespace SpacetimeDB.Editor
         
         private Action publishBtnClickAction;
         private Foldout publishResultFoldout;
+        private TextField publishResultHostTxt;
+        private TextField publishResultDbAddressTxt;
+        private Toggle publishResultIsOptimizedBuildToggle;
+        #endregion // UI Visual Elements
+        
 
         #region Init
         /// Show the publisher window via top Menu item
@@ -37,6 +51,7 @@ namespace SpacetimeDB.Editor
 
         /// Add style to the UI window; subscribe to click actions.
         /// High-level event chain handler.
+        /// (!) Persistent vals will NOT load immediately here; await them at setOnActionEvents
         public void CreateGUI()
         {
             // Init styles, bind fields to ui, sub to events
@@ -46,37 +61,7 @@ namespace SpacetimeDB.Editor
 
             // Fields set from here
             resetUi();
-            setDynamicUi();
             setOnActionEvents();
-        }
-
-        /// Dynamically sets a dashified-project-name placeholder, if empty
-        private void suggestModuleNameIfEmpty()
-        {
-            // Set the server module name placeholder text dynamically, based on the project name
-            // Replace non-alphanumeric chars with dashes
-            bool hasName = !string.IsNullOrEmpty(nameTxt.value);
-            if (hasName)
-                return; // Keep whatever the user customized
-            
-            // Prefix "unity-", dashify the name, replace "client" with "server (if found).
-            string unityProjectName = $"unity-{Application.productName.ToLowerInvariant()}";
-            string projectNameDashed = System.Text.RegularExpressions.Regex
-                .Replace(unityProjectName, @"[^a-z0-9]", "-")
-                .Replace("client", "server");
-            
-            nameTxt.value = projectNameDashed;
-        }
-
-        /// Dynamically set/reveal UI based on persistence
-        private void setDynamicUi()
-        {
-            suggestModuleNameIfEmpty();
-            
-            // ServerModulePathTxt persists: If previously entered, show the publish group
-            bool hasPathSet = !string.IsNullOrEmpty(serverModulePathTxt.value);
-            if (hasPathSet)
-                revealPublisherGroupUiAsync();
         }
 
         private void initVisualTreeStyles()
@@ -91,6 +76,8 @@ namespace SpacetimeDB.Editor
 
         private void setUiElements()
         {
+            topBannerBtn = rootVisualElement.Q<Button>("TopBannerBtn");
+            
             setupGroupBox = rootVisualElement.Q<GroupBox>("PathGroupBox");
             setDirectoryBtn = rootVisualElement.Q<Button>("PathSetDirectoryBtn");
             serverModulePathTxt = rootVisualElement.Q<TextField>("PathTxt");
@@ -108,6 +95,8 @@ namespace SpacetimeDB.Editor
         /// Changing implicit names can easily cause unexpected nulls
         private void sanityCheckUiElements()
         {
+            Assert.IsNotNull(topBannerBtn, $"Expected `{nameof(topBannerBtn)}`");
+            
             Assert.IsNotNull(setupGroupBox, $"Expected `{nameof(setupGroupBox)}`");
             Assert.IsNotNull(setDirectoryBtn, $"Expected `{nameof(setDirectoryBtn)}`");
             Assert.IsNotNull(serverModulePathTxt, $"Expected `{nameof(serverModulePathTxt)}`");
@@ -125,10 +114,28 @@ namespace SpacetimeDB.Editor
         /// Curry sync Actions from UI => to async Tasks
         private void setOnActionEvents()
         {
+            topBannerBtn.clicked += onTopBannerBtnClick;
+            serverModulePathTxt.RegisterValueChangedCallback(onServerModulePathTxtInitChanged); // For init only
             serverModulePathTxt.RegisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
             setDirectoryBtn.clicked += onSetDirectoryBtnClick;
             nameTxt.RegisterCallback<FocusOutEvent>(onNameTxtFocusOut);
             publishBtn.clicked += onPublishBtnClickAsync;
+        }
+        #endregion // Init
+        
+        
+        #region Direct UI Interaction Callbacks
+        /// (1) Suggest module name, if empty
+        /// (2) Reveal publisher group
+        /// (3) Ensure spacetimeDB CLI is installed async
+        private void onDirPathSet()
+        {
+            suggestModuleNameIfEmpty();
+            
+            // ServerModulePathTxt persists: If previously entered, show the publish group
+            bool hasPathSet = !string.IsNullOrEmpty(serverModulePathTxt.value);
+            if (hasPathSet)
+                revealPublisherGroupUiAsync(); // +Ensures SpacetimeDB CLI is installed async
         }
         
         /// Curried to an async Task, wrapped this way so
@@ -145,13 +152,22 @@ namespace SpacetimeDB.Editor
                 throw;
             }
         }
-        #endregion // Init
+
+        /// Used for init only, for when the persistent ViewDataKey
+        /// val is loaded from EditorPrefs 
+        private void onServerModulePathTxtInitChanged(ChangeEvent<string> evt)
+        {
+            onDirPathSet();
+            serverModulePathTxt.UnregisterValueChangedCallback(onServerModulePathTxtInitChanged);
+        }
         
-        
-        #region Direct UI Interaction Callbacks
         /// Toggle next section if !null
         private void onServerModulePathTxtFocusOut(FocusOutEvent evt)
         {
+            // Prevent inadvertent UI showing too early, frozen on modal file picking
+            if (isFilePicking)
+                return;
+            
             bool hasPathSet = !string.IsNullOrEmpty(serverModulePathTxt.value);
             if (hasPathSet)
                 revealPublisherGroupUiAsync();
@@ -163,14 +179,20 @@ namespace SpacetimeDB.Editor
         private void onNameTxtFocusOut(FocusOutEvent evt) =>
             suggestModuleNameIfEmpty();
         
+        /// Open link to SpacetimeDB Module docs
+        private void onTopBannerBtnClick() =>
+            Application.OpenURL(TOP_BANNER_CLICK_LINK);
+        
         /// Show folder dialog -> Set path label
         private void onSetDirectoryBtnClick()
         {
-            // Show folder dialog
+            // Show folder panel (modal FolderPicker dialog)
+            isFilePicking = true;
             string selectedPath = EditorUtility.OpenFolderPanel(
                 "Select Server Module Dir", 
                 Application.dataPath, 
                 "");
+            isFilePicking = false;
             
             // Cancelled?
             if (string.IsNullOrEmpty(selectedPath))
@@ -180,12 +202,30 @@ namespace SpacetimeDB.Editor
             serverModulePathTxt.value = selectedPath;
 
             // Reveal the next group
-            revealPublisherGroupUiAsync();
+            onDirPathSet();
         }
         #endregion // Direct UI Interaction Callbacks
         
         
-        #region Action Utils    
+        #region Action 
+        /// Dynamically sets a dashified-project-name placeholder, if empty
+        private void suggestModuleNameIfEmpty()
+        {
+            // Set the server module name placeholder text dynamically, based on the project name
+            // Replace non-alphanumeric chars with dashes
+            bool hasName = !string.IsNullOrEmpty(nameTxt.value);
+            if (hasName)
+                return; // Keep whatever the user customized
+            
+            // Prefix "unity-", dashify the name, replace "client" with "server (if found).
+            string unityProjectName = $"unity-{Application.productName.ToLowerInvariant()}";
+            string projectNameDashed = System.Text.RegularExpressions.Regex
+                .Replace(unityProjectName, @"[^a-z0-9]", "-")
+                .Replace("client", "server");
+            
+            nameTxt.value = projectNameDashed;
+        }
+        
         /// - Set to the initial state as if no inputs were set.
         /// - This exists so we can show all ui elements simultaneously in the
         ///   ui builder for convenience.
@@ -195,6 +235,7 @@ namespace SpacetimeDB.Editor
             installProgressBar.style.display = DisplayStyle.None;
             publishStatusLabel.style.display = DisplayStyle.None;
             publishResultFoldout.style.display = DisplayStyle.None;
+            publishResultFoldout.value = false;
         }
         
         /// This will reveal the group and initially check for the spacetime cli tool
@@ -293,9 +334,14 @@ namespace SpacetimeDB.Editor
 
         private void setPublishResultGroupUi(PublishServerModuleResult publishResult)
         {
+            // Load the result data
+            publishResultHostTxt.value = publishResult.UploadedToUrlAndPort;
+            publishResultDbAddressTxt.value = publishResult.DatabaseAddressHash;
+            publishResultIsOptimizedBuildToggle.value = !publishResult.CouldNotFindWasmOpt;
+            
+            // Show the result group and expand the foldout
             publishResultFoldout.style.display = DisplayStyle.Flex;
-            publishResultFoldout.value = false;
-            throw new NotImplementedException("TODO: setPublishResultGroupUi w/publishResult");
+            publishResultFoldout.value = true;
         }
 
         /// Show progress bar, clamped to 5~100, updating every 1s
@@ -327,7 +373,7 @@ namespace SpacetimeDB.Editor
             _ = startProgressBarAsync(title: "Checking...", autoHideOnComplete: false);
             publishStatusLabel.text = GetStyledStr(
                 StringStyle.Action, 
-                "Checking for Spacetime CLI tool");
+                "Checking for SpacetimeDB CLI");
             
             // Check if Spacetime CLI is installed => install, if !found
             bool isSpacetimeCliInstalled;
@@ -353,7 +399,7 @@ namespace SpacetimeDB.Editor
             installProgressBar.title = "Installing...";
             publishStatusLabel.text = GetStyledStr(
                 StringStyle.Action, 
-                "Installing Spacetime CLI");
+                "Installing SpacetimeDB CLI");
 
             SpacetimeCliResult installResult;
             try
@@ -405,13 +451,15 @@ namespace SpacetimeDB.Editor
         /// This should parity the opposite of setOnActionEvents()
         private void unsetOnActionEvents()
         {
+            topBannerBtn.clicked -= onTopBannerBtnClick;
+            serverModulePathTxt.UnregisterValueChangedCallback(onServerModulePathTxtInitChanged); // For init only
             serverModulePathTxt.UnregisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
             setDirectoryBtn.clicked -= onSetDirectoryBtnClick;
             nameTxt.UnregisterCallback<FocusOutEvent>(onNameTxtFocusOut);
             publishBtn.clicked -= onPublishBtnClickAsync;
         }
 
-        private void OnDestroy() => unsetOnActionEvents();
+        private void OnDisable() => unsetOnActionEvents();
         #endregion // Cleanup
     }
 }

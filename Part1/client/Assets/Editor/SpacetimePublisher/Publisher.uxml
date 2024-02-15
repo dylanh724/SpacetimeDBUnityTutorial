@@ -1,14 +1,16 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
     <Style src="project://database/Assets/Editor/SpacetimePublisher/Publisher.uss?fileID=7433441132597879392&amp;guid=20c9b745db07f9e46bb5d740ec005974&amp;type=3#Publisher" />
     <ui:VisualElement name="Root" style="flex-grow: 1; background-color: rgba(12, 12, 12, 0.78);">
-        <ui:VisualElement name="Header" style="height: 66px; background-image: url(&apos;project://database/Assets/Editor/SpacetimePublisher/Sprites/spacetime-logo-full.png?fileID=2800000&amp;guid=8e8298ff06b7be441bce715299b63855&amp;type=3#spacetime-logo-full&apos;); -unity-background-scale-mode: scale-to-fit; width: auto;" />
+        <ui:VisualElement name="Header" style="height: 66px; width: auto;">
+            <ui:Button parse-escape-sequences="true" display-tooltip-when-elided="true" name="TopBannerBtn" tooltip="Open Docs" style="background-image: url(&apos;project://database/Assets/Editor/SpacetimePublisher/Sprites/spacetime-logo-full.png?fileID=2800000&amp;guid=8e8298ff06b7be441bce715299b63855&amp;type=3#spacetime-logo-full&apos;); background-color: rgba(88, 88, 88, 0); flex-shrink: 1; flex-grow: 1; -unity-background-scale-mode: scale-to-fit;" />
+        </ui:VisualElement>
         <ui:VisualElement name="Spacer15" style="height: 15px;" />
         <ui:VisualElement name="Body" style="flex-grow: 1; height: 94px;">
             <ui:GroupBox name="NameGroupBox">
-                <ui:TextField picking-mode="Ignore" label="Server Module Name" name="NameTxt" tooltip="Choose a unique-dashified-name. Leave empty to use your project name." view-data-key="NameTxt" style="color: rgb(76, 244, 144); -unity-font-style: normal;" />
+                <ui:TextField picking-mode="Ignore" label="&lt;b&gt;Server Module Name:&lt;/b&gt;" name="NameTxt" tooltip="Choose a unique-dashified-name. Leave empty to use your project name." view-data-key="NameTxt" style="color: rgb(76, 244, 144); -unity-font-style: normal;" />
             </ui:GroupBox>
             <ui:GroupBox name="PathGroupBox">
-                <ui:TextField picking-mode="Ignore" label="Server Module Path  " value="C:\repos\work\Spacetime\SpacetimeDBUnityTutorial\Part1\client\Assets" name="PathTxt" multiline="true" tooltip="Click the &quot;Browse&quot; button below or paste a path/to/your/server module" view-data-key="PathTxt" style="white-space: normal; text-overflow: ellipsis;" />
+                <ui:TextField picking-mode="Ignore" label="&lt;b&gt;Server Module Path:&lt;/b&gt;  " name="PathTxt" multiline="true" tooltip="Click the &quot;Browse&quot; button below or paste a path/to/your/server module" view-data-key="PathTxt" style="white-space: normal; text-overflow: ellipsis;" />
                 <ui:Button text="..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="PathSetDirectoryBtn" tooltip="Browse for your server module project dir path" style="-unity-font-style: normal; font-size: 28px; height: 25px; -unity-text-align: lower-center; padding-bottom: 2px;" />
             </ui:GroupBox>
             <ui:GroupBox name="PublishGroupBox">
@@ -16,9 +18,11 @@
                 <ui:ProgressBar value="5" title="Running CLI..." name="InstallProgressBar" tooltip="Allows for the `spacetime` CLI command" low-value="5" style="display: none;" />
                 <ui:Label tabindex="-1" text="{StatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishStatusLabel" style="color: rgb(229, 229, 229); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
             </ui:GroupBox>
-            <ui:Foldout text="Published Info Cache (TODO)" name="PublishResultFoldout" view-data-key="PublishResultFoldout" value="false" style="display: none;">
-                <ui:TextField picking-mode="Ignore" label="Host (ip:port)" value="{PublishResultIpPortTxt}" name="PublishResultIpPortTxt" multiline="true" tooltip="Click the &quot;Browse&quot; button below or paste a path/to/your/server module" view-data-key="PathTxt" style="white-space: normal; text-overflow: ellipsis;" />
-                <ui:Toggle label="Optimized Build?" name="PublishResultIsOptimizedBuildToggle" text=" &lt;color=white&gt;via wasm-opt" />
+            <ui:VisualElement name="Spacer5" style="height: 5px;" />
+            <ui:Foldout text="&lt;b&gt;Published Info Cache&lt;/b&gt;" name="PublishResultFoldout" view-data-key="PublishResultFoldout" value="true" style="display: flex; -unity-font-style: normal;">
+                <ui:TextField picking-mode="Ignore" label="Host:" value="{PublishResultIpPortTxt}" name="PublishResultHostTxt" multiline="true" tooltip="host:ip" view-data-key="PublishResultHostTxt" style="white-space: normal; text-overflow: ellipsis;" />
+                <ui:TextField picking-mode="Ignore" label="DB Address:" value="{PublishResultIpPortTxt}" name="PublishResultDbAddressTxt" multiline="true" tooltip="Hash" view-data-key="PublishResultDbAddressTxt" style="white-space: normal; text-overflow: ellipsis;" />
+                <ui:Toggle label="Optimized Build:" name="PublishResultIsOptimizedBuildToggle" view-data-key="PublishResultIsOptimizedBuildToggle" tooltip="via `opt-wasm`" />
             </ui:Foldout>
         </ui:VisualElement>
     </ui:VisualElement>

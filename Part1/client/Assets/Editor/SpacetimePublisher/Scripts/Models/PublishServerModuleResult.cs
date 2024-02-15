@@ -31,6 +31,8 @@ namespace SpacetimeDB.Editor
         {
             None,
             MSB1003_InvalidProjectDir,
+            UnknownError,
+            ServerHostNotRunning,
         }
 
         /// Parsed from known MSBUILD publishing error codes
@@ -50,28 +52,51 @@ namespace SpacetimeDB.Editor
         public PublishServerModuleResult(SpacetimeCliResult cliResult)
             : base(cliResult.CliOutput, cliResult.CliError)
         {
-            if (cliResult.HasCliErr)
+            bool hasOutputErr = CliOutput.Contains("Error:");
+
+            if (cliResult.HasCliErr || hasOutputErr)
             {
-                // CliError >>
-                bool hasErrWorkingProjDirNotFound =
-                    cliResult.HasCliErr &&
-                    cliResult.CliError.Contains("Working project directory not found");
+                if (cliResult.HasCliErr)
+                {
+                    // CliError >>
+                    bool hasErrWorkingProjDirNotFound =
+                        cliResult.HasCliErr &&
+                        cliResult.CliError.Contains("Working project directory not found");
 
-                if (!hasErrWorkingProjDirNotFound)
-                    return;
+                    if (hasErrWorkingProjDirNotFound)
+                    {
+                        this.PublishErrCode = PublishErrorCode.MSB1003_InvalidProjectDir;
+                        this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
+                            PublisherMeta.StringStyle.Error,
+                            "Invalid server module dir");
+                    }
+                }
+            
+                // CLI resulted success, but what about an internal error specific to publisher?
+                if (cliResult.CliOutput.Contains("Error:"))
+                {
+                    bool isServerNotRunning = cliResult.CliOutput.Contains("No connection could be made");
 
-                this.PublishErrCode = PublishErrorCode.MSB1003_InvalidProjectDir;
-                this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
-                    PublisherMeta.StringStyle.Error,
-                    "Invalid server module dir");
+                    if (isServerNotRunning)
+                    {
+                        this.PublishErrCode = PublishErrorCode.ServerHostNotRunning;
+                        this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
+                            PublisherMeta.StringStyle.Error,
+                            "Server host not running");
+                    }
+                    else
+                        this.PublishErrCode = PublishErrorCode.UnknownError;
+                }
 
+                // Regardless of err type, stop here
                 return;
             }
 
+            // ---------------------
             // Success >>
             this.CouldNotFindWasmOpt = CliOutput.Contains("Could not find wasm-opt");
             this.IsLocal = CliOutput.Contains("Uploading to local =>");
-            DatabaseAddressHash = getDatabaseAddressHash();
+            this.DatabaseAddressHash = getDatabaseAddressHash();
 
             // Use regex to find the host url from CliOutput.
             // Eg, from "Uploading to local => http://127.0.0.1:3000"
@@ -111,6 +136,7 @@ namespace SpacetimeDB.Editor
 
         /// Returns a json summary
         public override string ToString() => 
-            $"{nameof(PublishServerModuleResult)}: {JsonConvert.SerializeObject(this)}";
+            $"{nameof(PublishServerModuleResult)}: " +
+            $"{JsonConvert.SerializeObject(this, Formatting.Indented)}";
     }
 }
