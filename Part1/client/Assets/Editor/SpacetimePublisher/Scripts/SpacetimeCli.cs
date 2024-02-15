@@ -78,7 +78,9 @@ namespace SpacetimeDB.Editor
             // Dive deeper into the context || error
             PublishServerModuleResult publishResult = new(cliResult);
             if (!publishResult.HasPublishErr && LOG_LEVEL == CliLogLevel.Info)
-                Debug.Log($"Server module published successfully. {publishResult}"); // json
+                Debug.LogError($"Server module published failed | {publishResult}"); // json
+            else
+                Debug.Log($"Server module publish success | {publishResult}"); // json
             
             return publishResult;
         }

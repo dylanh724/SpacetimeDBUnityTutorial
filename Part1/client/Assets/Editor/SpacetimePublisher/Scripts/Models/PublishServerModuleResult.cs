@@ -31,8 +31,8 @@ namespace SpacetimeDB.Editor
         {
             None,
             MSB1003_InvalidProjectDir,
+            OS10061_ServerHostNotRunning,
             UnknownError,
-            ServerHostNotRunning,
         }
 
         /// Parsed from known MSBUILD publishing error codes
@@ -68,21 +68,21 @@ namespace SpacetimeDB.Editor
                         this.PublishErrCode = PublishErrorCode.MSB1003_InvalidProjectDir;
                         this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
                             PublisherMeta.StringStyle.Error,
-                            "Invalid server module dir");
+                            "<b>Failed:</b> Invalid server module dir");
                     }
                 }
             
                 // CLI resulted success, but what about an internal error specific to publisher?
-                if (cliResult.CliOutput.Contains("Error:"))
+                if (cliResult.CliError.Contains("Error:"))
                 {
-                    bool isServerNotRunning = cliResult.CliOutput.Contains("No connection could be made");
+                    bool isServerNotRunning = cliResult.CliError.Contains("os error 10061");
 
                     if (isServerNotRunning)
                     {
-                        this.PublishErrCode = PublishErrorCode.ServerHostNotRunning;
+                        this.PublishErrCode = PublishErrorCode.OS10061_ServerHostNotRunning;
                         this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
                             PublisherMeta.StringStyle.Error,
-                            "Server host not running");
+                            "<b>Failed:</b> Server host not running");
                     }
                     else
                         this.PublishErrCode = PublishErrorCode.UnknownError;
