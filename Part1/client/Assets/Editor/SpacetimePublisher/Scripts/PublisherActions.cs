@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using static SpacetimeDB.Editor.PublisherMeta;
@@ -11,7 +10,7 @@ namespace SpacetimeDB.Editor
     /// These actions trigger the middleware between the UI and CLI
     public partial class PublisherWindow
     {
-          /// (1) Suggest module name, if empty
+        /// (1) Suggest module name, if empty
         /// (2) Reveal publisher group
         /// (3) Ensure spacetimeDB CLI is installed async
         private void onDirPathSet()
@@ -67,6 +66,10 @@ namespace SpacetimeDB.Editor
             publishStatusLabel.style.display = DisplayStyle.None;
             publishResultFoldout.style.display = DisplayStyle.None;
             publishResultFoldout.value = false;
+            
+            // Hacky readonly Toggle feat workaround
+            publishResultIsOptimizedBuildToggle.SetEnabled(false);
+            publishResultIsOptimizedBuildToggle.style.opacity = 1;
         }
         
         /// This will reveal the group and initially check for the spacetime cli tool
@@ -178,7 +181,10 @@ namespace SpacetimeDB.Editor
             // Load the result data
             publishResultHostTxt.value = publishResult.UploadedToHost;
             publishResultDbAddressTxt.value = publishResult.DatabaseAddressHash;
-            publishResultIsOptimizedBuildToggle.value = !publishResult.CouldNotFindWasmOpt;
+            
+            // Set via ValueWithoutNotify since this is a hacky "readonly" Toggle (no official feat for this, yet)
+            bool isOptimizedBuildUsingWasmOpt = !publishResult.CouldNotFindWasmOpt;
+            publishResultIsOptimizedBuildToggle.value = isOptimizedBuildUsingWasmOpt;
             
             // Show the result group and expand the foldout
             revealPublishResultCacheIfHostExists(openFoldout: true);
@@ -289,15 +295,34 @@ namespace SpacetimeDB.Editor
         /// Install `wasm-opt` npm pkg for a "set and forget" publish optimization boost
         private async Task installWasmOptPackageViaNpmAsync()
         {
+            // Disable btn + show installing status
+            installWasmOptBtn.SetEnabled(false);
+            installWasmOptBtn.text = GetStyledStr(StringStyle.Action, "Installing...");
+
+            SpacetimeCliResult cliResult;
             try
             {
-                // TODO
+                cliResult = await SpacetimeDbCli.InstallWasmOptPkgAsync();
             }
             catch (Exception e)
             {
-                Debug.LogError($"Error: {e}");
+                Debug.LogError($"Error: {e.Message}");
+                installWasmOptBtn.text = GetStyledStr(StringStyle.Error, $"<b>Error:</b> {e.Message}");
                 throw;
             }
+
+            bool isSuccess = !cliResult.HasCliErr;
+            if (!isSuccess)
+            {
+                // Error
+                installWasmOptBtn.SetEnabled(false);
+                return;
+            }
+            
+            // Success: We still want to show the install button, but tweak it.
+            // It'll hide next time we publish
+            installWasmOptBtn.text = GetStyledStr(StringStyle.Success, "Installed");
+            publishResultIsOptimizedBuildToggle.value = true;
         }
     }
 }

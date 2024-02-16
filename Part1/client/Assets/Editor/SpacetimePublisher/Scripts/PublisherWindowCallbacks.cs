@@ -9,8 +9,46 @@ namespace SpacetimeDB.Editor
     /// Visual Element callbacks directly triggered from the UI via a user,
     /// subscribed to @ PublisherWindow.setOnActionEvents.
     /// OnButtonClick, FocusOut, OnChanged, etc.
+    /// Set @ setOnActionEvents(), unset at unsetActionEvents()
     public partial class PublisherWindow
     {
+        #region Init from PublisherWindow.cs CreateGUI()
+        /// Curry sync Actions from UI => to async Tasks
+        private void setOnActionEvents()
+        {
+            topBannerBtn.clicked += onTopBannerBtnClick;
+            serverModulePathTxt.RegisterValueChangedCallback(onServerModulePathTxtInitChanged); // For init only
+            serverModulePathTxt.RegisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
+            setDirectoryBtn.clicked += onSetDirectoryBtnClick;
+            nameTxt.RegisterCallback<FocusOutEvent>(onNameTxtFocusOut);
+            publishBtn.clicked += onPublishBtnClickAsync;
+            publishResultIsOptimizedBuildToggle.RegisterValueChangedCallback(
+                onPublishResultIsOptimizedBuildToggleChanged);
+            installWasmOptBtn.clicked += onInstallWasmOptBtnClick;
+        }
+        
+        /// Cleanup: This should parity the opposite of setOnActionEvents()
+        private void unsetOnActionEvents()
+        {
+            topBannerBtn.clicked -= onTopBannerBtnClick;
+            serverModulePathTxt.UnregisterValueChangedCallback(onServerModulePathTxtInitChanged); // For init only
+            serverModulePathTxt.UnregisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
+            setDirectoryBtn.clicked -= onSetDirectoryBtnClick;
+            nameTxt.UnregisterCallback<FocusOutEvent>(onNameTxtFocusOut);
+            publishBtn.clicked -= onPublishBtnClickAsync;
+            publishResultIsOptimizedBuildToggle.UnregisterValueChangedCallback(
+                onPublishResultIsOptimizedBuildToggleChanged);
+            publishResultIsOptimizedBuildToggle.UnregisterValueChangedCallback(
+                onPublishResultIsOptimizedBuildToggleChanged);
+            installWasmOptBtn.clicked -= onInstallWasmOptBtnClick;
+        }
+
+        /// Cleanup when the UI is out-of-scope
+        private void OnDisable() => unsetOnActionEvents();
+        #endregion // Init from PublisherWindow.cs CreateGUI()
+        
+        
+        #region Direct UI Callbacks
         /// Open link to SpacetimeDB Module docs
         private void onTopBannerBtnClick() =>
             Application.OpenURL(TOP_BANNER_CLICK_LINK);
@@ -28,7 +66,7 @@ namespace SpacetimeDB.Editor
         private void onServerModulePathTxtFocusOut(FocusOutEvent evt)
         {
             // Prevent inadvertent UI showing too early, frozen on modal file picking
-            if (isFilePicking)
+            if (_isFilePicking)
                 return;
             
             bool hasPathSet = !string.IsNullOrEmpty(serverModulePathTxt.value);
@@ -51,14 +89,14 @@ namespace SpacetimeDB.Editor
         {
             string pathBefore = serverModulePathTxt.value;
             // Show folder panel (modal FolderPicker dialog)
-            isFilePicking = true;
+            _isFilePicking = true;
             
             string selectedPath = EditorUtility.OpenFolderPanel(
                 "Select Server Module Dir", 
                 Application.dataPath, 
                 "");
             
-            isFilePicking = false;
+            _isFilePicking = false;
             
             // Cancelled or same path?
             bool pathChanged = selectedPath == pathBefore;
@@ -70,12 +108,13 @@ namespace SpacetimeDB.Editor
             onDirPathSet();
         }
         
-        /// Unity does not have a readonly prop for Toggles, yet; hacky workaround.
+        /// Show [Install Package] btn if !optimized
         private void onPublishResultIsOptimizedBuildToggleChanged(ChangeEvent<bool> evt)
         {
-            // Revert to old val
-            publishResultIsOptimizedBuildToggle.SetValueWithoutNotify(evt.previousValue);
-            evt.StopPropagation();
+            bool isOptimized = evt.newValue;
+            installWasmOptBtn.style.display = isOptimized 
+                ? DisplayStyle.None 
+                : DisplayStyle.Flex;
         }
         
         /// Curried to an async Task, wrapped this way so
@@ -92,5 +131,6 @@ namespace SpacetimeDB.Editor
                 throw;
             }
         }
+        #endregion // Direct UI Callbacks
     }
 }

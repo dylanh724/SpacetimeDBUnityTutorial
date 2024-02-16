@@ -71,6 +71,20 @@ namespace SpacetimeDB.Editor
             SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
             return onPublishServerModuleDone(cliResult);
         }
+        
+        /// Uses the `spacetime publish` CLI command, appending +args from UI elements
+        public static async Task<SpacetimeCliResult> InstallWasmOptPkgAsync()
+        {
+            const string argSuffix = "npm install -g wasm-opt";
+            SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
+            return onInstallWasmOptPkgDone(cliResult);
+        }
+
+        private static SpacetimeCliResult onInstallWasmOptPkgDone(SpacetimeCliResult cliResult)
+        {
+            // Success results in !CliError and "changed {numPkgs} packages in {numSecs}s
+            return cliResult;
+        }
 
         private static PublishServerModuleResult onPublishServerModuleDone(SpacetimeCliResult cliResult)
         {

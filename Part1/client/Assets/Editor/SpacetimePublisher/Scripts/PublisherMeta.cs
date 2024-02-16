@@ -16,10 +16,11 @@ namespace SpacetimeDB.Editor
         public static string PathToUxml => $"{PUBLISHER_DIR_PATH}/Publisher.uxml";
         public static string PathToUss => $"{PUBLISHER_DIR_PATH}/Publisher.uss";
         
+        // Colors pulled from docs
         public const string ACTION_COLOR_HEX = "#FFEA30"; // Corn Yellow
-        public const string ERROR_COLOR_HEX = "#ed8536"; // Muted Orange-Red
+        public const string ERROR_COLOR_HEX = "#FDBE01"; // Golden Orange
         public const string SUCCESS_COLOR_HEX = "#4CF490"; // Sea Green (from docs)
-
+        public const string FALLBACK_TEXT_COLOR_HEX = "#B6C0CF"; // Hazel Grey
         
         public static string GetStyledStr(StringStyle style, string str)
         {

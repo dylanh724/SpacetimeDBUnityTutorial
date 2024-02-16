@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -15,7 +13,7 @@ namespace SpacetimeDB.Editor
         /// Since we have FocusOut events, this will sometimes trigger
         /// awkwardly if you jump from input to a file picker button
         /// </summary>
-        bool isFilePicking;
+        private bool _isFilePicking;
 
         #region UI Visual Elements
         private Button topBannerBtn;
@@ -35,8 +33,8 @@ namespace SpacetimeDB.Editor
         private Foldout publishResultFoldout;
         private TextField publishResultHostTxt; // readonly
         private TextField publishResultDbAddressTxt; // readonly
-        private Toggle publishResultIsOptimizedBuildToggle; // readonly via hacky workaround: Only set val via SetValueWithoutNotify()
-        private Button installWasmOptBtn; // Only shows after a publish where wasm-opt was !found        
+        private Toggle publishResultIsOptimizedBuildToggle; // Set readonly via hacky workaround (SetEnabled @ ResetUi)
+        private Button installWasmOptBtn; // Only shows after a publish where wasm-opt was !found
         #endregion // UI Visual Elements
         
         
@@ -61,7 +59,7 @@ namespace SpacetimeDB.Editor
 
             // Fields set from here
             resetUi();
-            setOnActionEvents();
+            setOnActionEvents(); // @ PublisherWindowCallbacks.cs
         }
 
         private void initVisualTreeStyles()
@@ -120,39 +118,6 @@ namespace SpacetimeDB.Editor
             Assert.IsNotNull(publishResultIsOptimizedBuildToggle, $"Expected `{nameof(publishResultIsOptimizedBuildToggle)}`");
             Assert.IsNotNull(installWasmOptBtn, $"Expected `{nameof(installWasmOptBtn)}`");
         }
-
-        /// Curry sync Actions from UI => to async Tasks
-        private void setOnActionEvents()
-        {
-            topBannerBtn.clicked += onTopBannerBtnClick;
-            serverModulePathTxt.RegisterValueChangedCallback(onServerModulePathTxtInitChanged); // For init only
-            serverModulePathTxt.RegisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
-            setDirectoryBtn.clicked += onSetDirectoryBtnClick;
-            nameTxt.RegisterCallback<FocusOutEvent>(onNameTxtFocusOut);
-            publishBtn.clicked += onPublishBtnClickAsync;
-            publishResultIsOptimizedBuildToggle.RegisterValueChangedCallback(
-                onPublishResultIsOptimizedBuildToggleChanged);
-            installWasmOptBtn.clicked += onInstallWasmOptBtnClick;
-        }
         #endregion // Init
-        
-        
-        #region Cleanup
-        /// This should parity the opposite of setOnActionEvents()
-        private void unsetOnActionEvents()
-        {
-            topBannerBtn.clicked -= onTopBannerBtnClick;
-            serverModulePathTxt.UnregisterValueChangedCallback(onServerModulePathTxtInitChanged); // For init only
-            serverModulePathTxt.UnregisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
-            setDirectoryBtn.clicked -= onSetDirectoryBtnClick;
-            nameTxt.UnregisterCallback<FocusOutEvent>(onNameTxtFocusOut);
-            publishBtn.clicked -= onPublishBtnClickAsync;
-            publishResultIsOptimizedBuildToggle.UnregisterValueChangedCallback(
-                onPublishResultIsOptimizedBuildToggleChanged);
-            installWasmOptBtn.clicked -= onInstallWasmOptBtnClick;
-        }
-
-        private void OnDisable() => unsetOnActionEvents();
-        #endregion // Cleanup
     }
 }
