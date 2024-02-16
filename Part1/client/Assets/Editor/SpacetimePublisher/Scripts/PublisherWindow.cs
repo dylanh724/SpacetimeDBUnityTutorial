@@ -138,7 +138,8 @@ namespace SpacetimeDB.Editor
         /// (3) Ensure spacetimeDB CLI is installed async
         private void onDirPathSet()
         {
-            suggestModuleNameIfEmpty();
+            // We just updated the path - hide old publish result cache
+            publishResultFoldout.style.display = DisplayStyle.None;
             
             // ServerModulePathTxt persists: If previously entered, show the publish group
             bool hasPathSet = !string.IsNullOrEmpty(serverModulePathTxt.value);
@@ -202,22 +203,24 @@ namespace SpacetimeDB.Editor
         /// Show folder dialog -> Set path label
         private void onSetDirectoryBtnClick()
         {
+            string pathBefore = serverModulePathTxt.value;
             // Show folder panel (modal FolderPicker dialog)
             isFilePicking = true;
+            
             string selectedPath = EditorUtility.OpenFolderPanel(
                 "Select Server Module Dir", 
                 Application.dataPath, 
                 "");
+            
             isFilePicking = false;
             
-            // Cancelled?
-            if (string.IsNullOrEmpty(selectedPath))
+            // Cancelled or same path?
+            bool pathChanged = selectedPath == pathBefore;
+            if (string.IsNullOrEmpty(selectedPath) || pathChanged)
                 return;
             
-            // Set path label to selected path to reflect UI
+            // Path changed: set path val + reveal next UI group
             serverModulePathTxt.value = selectedPath;
-
-            // Reveal the next group
             onDirPathSet();
         }
         #endregion // Direct UI Interaction Callbacks

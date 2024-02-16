@@ -64,7 +64,7 @@ namespace SpacetimeDB.Editor
                     // CliError >>
                     bool hasErrWorkingProjDirNotFound =
                         cliResult.HasCliErr &&
-                        cliResult.CliError.Contains("Working project directory not found");
+                        cliResult.CliOutput.Contains("error MSB1003"); // Working proj dir !found
 
                     if (hasErrWorkingProjDirNotFound)
                     {
