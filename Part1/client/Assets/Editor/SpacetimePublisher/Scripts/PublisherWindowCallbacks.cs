@@ -6,7 +6,7 @@ using static SpacetimeDB.Editor.PublisherMeta;
 
 namespace SpacetimeDB.Editor
 {
-    /// Directly triggered from the UI via a user,
+    /// Visual Element callbacks directly triggered from the UI via a user,
     /// subscribed to @ PublisherWindow.setOnActionEvents.
     /// OnButtonClick, FocusOut, OnChanged, etc.
     public partial class PublisherWindow

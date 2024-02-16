@@ -7,7 +7,7 @@ using Debug = UnityEngine.Debug;
 namespace SpacetimeDB.Editor
 {
     /// CLI action helper for PublisherWindow
-    public static class SpacetimeCli
+    public static class SpacetimeDbCli
     {
         #region Static Options
         /// TODO: Possibly integrate this within the PublisherWindow?

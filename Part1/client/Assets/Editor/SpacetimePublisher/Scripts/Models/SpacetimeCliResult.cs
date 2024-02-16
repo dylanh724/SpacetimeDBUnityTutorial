@@ -1,6 +1,6 @@
 namespace SpacetimeDB.Editor
 {
-    /// Result from SpacetimeCli.runCliCommandAsync
+    /// Result from SpacetimeDbCli.runCliCommandAsync
     public class SpacetimeCliResult
     {
         public readonly string CliOutput;
