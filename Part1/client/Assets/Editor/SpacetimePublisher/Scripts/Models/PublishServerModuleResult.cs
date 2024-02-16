@@ -1,5 +1,7 @@
 using System.Text.RegularExpressions;
+using NUnit.Framework;
 using Unity.Plastic.Newtonsoft.Json;
+using UnityEngine;
 
 namespace SpacetimeDB.Editor
 {
@@ -7,11 +9,14 @@ namespace SpacetimeDB.Editor
     public class PublishServerModuleResult : SpacetimeCliResult
     {
         #region Success
+        /// The errors may have false-positive warnings; this is the true success checker
+        public readonly bool IsSuccessfulPublish;
+        
         /// `wasm-opt` !found, so the module continued with an "unoptimised" version
         public readonly bool CouldNotFindWasmOpt;
 
-        /// Eg: "http://localhost:3000"
-        public readonly string UploadedToUrlAndPort;
+        /// Eg: "http://localhost:3000" || "https://testnet.spacetimedb.com"
+        public readonly string UploadedToHost;
 
         /// Eg: "http://localhost"
         public readonly string UploadedToUrl;
@@ -19,7 +24,7 @@ namespace SpacetimeDB.Editor
         /// Eg: 3000
         public readonly ushort UploadedToPort;
 
-        /// Not to be confused with UploadedToUrlAndPort
+        /// Not to be confused with UploadedToHost
         public readonly string DatabaseAddressHash;
 
         public readonly bool IsLocal;
@@ -39,9 +44,7 @@ namespace SpacetimeDB.Editor
         /// (!) We currently only catch invalid project dir errors
         public readonly PublishErrorCode PublishErrCode;
         
-        /// (!) This may have a different result than base.HasCliErr due to
-        /// false positive CLI errors, such as `wasm-opt` not found.
-        /// Prioritize this over base.HasCliErr. 
+        /// (!) These may be lesser warnings. For a true indicator of success, check `IsSuccessfulPublish` 
         public bool HasPublishErr => PublishErrCode != PublishErrorCode.None;
 
         /// You may pass this raw string to the UI, if a known err is caught
@@ -82,16 +85,22 @@ namespace SpacetimeDB.Editor
                         this.PublishErrCode = PublishErrorCode.OS10061_ServerHostNotRunning;
                         this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
                             PublisherMeta.StringStyle.Error,
-                            "<b>Failed:</b> Server host not running");
+                            "<b>Failed:</b> Server host not running:\n" +
+                            "(1) Open terminal\n" +
+                            "(2) `spacetime start`\n" +
+                            "(3) Try again");
                     }
                     else
                         this.PublishErrCode = PublishErrorCode.UnknownError;
                 }
 
-                // Regardless of err type, stop here
-                return;
+                // Check for false-positive errs (that are more-so warnings)
+                this.IsSuccessfulPublish = CliOutput.Contains("Updated database with domain");
+                
+                if (!IsSuccessfulPublish)
+                    return;
             }
-
+ 
             // ---------------------
             // Success >>
             this.CouldNotFindWasmOpt = CliOutput.Contains("Could not find wasm-opt");
@@ -100,13 +109,27 @@ namespace SpacetimeDB.Editor
 
             // Use regex to find the host url from CliOutput.
             // Eg, from "Uploading to local => http://127.0.0.1:3000"
+            // Eg, from "Uploading to testnet => https://testnet.spacetimedb.com"
             (string url, string port)? urlPortTuple = getHostUrlFromCliOutput();
             if (urlPortTuple == null)
                 return;
 
-            this.UploadedToUrlAndPort = $"{urlPortTuple.Value.url}:{urlPortTuple.Value.port}";
+            this.UploadedToHost = $"{urlPortTuple.Value.url}:{urlPortTuple.Value.port}";
             this.UploadedToUrl = urlPortTuple.Value.url;
-            this.UploadedToPort = ushort.Parse(urlPortTuple.Value.port);
+            
+            // There may not be a port
+            if (ushort.TryParse(urlPortTuple.Value.port, out ushort parsedPort))
+                this.UploadedToPort = parsedPort; // Parsing successful, update with the parsed value
+            else
+            {
+                // No port - assume based on http(s) prefix
+                this.UploadedToPort = UploadedToHost.StartsWith("https") 
+                    ? (ushort)443 // ssl
+                    : (ushort)80; // !ssl
+                
+                // We also need to remove the `:` from the url host
+                this.UploadedToHost = UploadedToHost.Replace(":", "");
+            }
         }
 
         /// Use regex to find the host url from CliOutput.
@@ -120,17 +143,28 @@ namespace SpacetimeDB.Editor
                 return null;
 
             string url = match.Groups[2].Value;
-            string port = match.Groups[3].Value;
+            string port = match.Groups[3].Value; // Optional
+            
+            // url sanity check
+            if (string.IsNullOrEmpty(url))
+                Debug.LogError("Failed to parse host url from CliOutput");
 
             return (url, port);
         }
 
+        /// This could either be from "created" or "updated" prompts.
         /// Eg: "41c6f8bff828bb33356c6104b35efe45"
         private string getDatabaseAddressHash()
         {
-            const string pattern = @"Created new database with address: (\w+)";
-            Match match = Regex.Match(CliOutput, pattern);
-
+            // Check for updated
+            const string updatedPattern = @"Updated database with domain:.+address: (\w+)";
+            Match match = Regex.Match(CliOutput, updatedPattern);
+            if (match.Success)
+                return match.Groups[1].Value;
+            
+            // Check for created
+            const string createdPattern = @"Created new database with address: (\S+)";
+            match = Regex.Match(CliOutput, createdPattern);
             return match.Success ? match.Groups[1].Value : null;
         }
 

@@ -16,7 +16,7 @@ namespace SpacetimeDB.Editor
         /// awkwardly if you jump from input to a file picker button
         /// </summary>
         bool isFilePicking;
-        
+
         #region UI Visual Elements
         private Button topBannerBtn;
         
@@ -25,21 +25,20 @@ namespace SpacetimeDB.Editor
         private TextField serverModulePathTxt;
         
         private GroupBox nameGroupBox;
-        private TextField nameTxt;
+        private TextField nameTxt; // Always has a val (fallback system)
 
         private GroupBox publishGroupBox;
         private ProgressBar installProgressBar;
         private Label publishStatusLabel;
         private Button publishBtn;
         
-        private Action publishBtnClickAction;
         private Foldout publishResultFoldout;
-        private TextField publishResultHostTxt;
-        private TextField publishResultDbAddressTxt;
-        private Toggle publishResultIsOptimizedBuildToggle;
+        private TextField publishResultHostTxt; // readonly
+        private TextField publishResultDbAddressTxt; // readonly
+        private Toggle publishResultIsOptimizedBuildToggle; // readonly via hacky workaround: Only set val via SetValueWithoutNotify()
         #endregion // UI Visual Elements
         
-
+        
         #region Init
         /// Show the publisher window via top Menu item
         [MenuItem("Window/SpacetimeDB/Publisher #&p")] // (SHIFT+ALT+P)
@@ -89,7 +88,11 @@ namespace SpacetimeDB.Editor
             installProgressBar = rootVisualElement.Q<ProgressBar>("InstallProgressBar");
             publishStatusLabel = rootVisualElement.Q<Label>("PublishStatusLabel");
             publishBtn = rootVisualElement.Q<Button>("PublishBtn");
+            
             publishResultFoldout = rootVisualElement.Q<Foldout>("PublishResultFoldout");
+            publishResultHostTxt = rootVisualElement.Q<TextField>("PublishResultHostTxt");
+            publishResultDbAddressTxt = rootVisualElement.Q<TextField>("PublishResultDbAddressTxt");
+            publishResultIsOptimizedBuildToggle = rootVisualElement.Q<Toggle>("PublishResultIsOptimizedBuildToggle");
         }
 
         /// Changing implicit names can easily cause unexpected nulls
@@ -109,6 +112,9 @@ namespace SpacetimeDB.Editor
             Assert.IsNotNull(publishStatusLabel, $"Expected `{nameof(publishStatusLabel)}`");
             Assert.IsNotNull(publishBtn, $"Expected `{nameof(publishBtn)}`");
             Assert.IsNotNull(publishResultFoldout, $"Expected `{nameof(publishResultFoldout)}`");
+            Assert.IsNotNull(publishResultHostTxt, $"Expected `{nameof(publishResultHostTxt)}`");
+            Assert.IsNotNull(publishResultDbAddressTxt, $"Expected `{nameof(publishResultDbAddressTxt)}`");
+            Assert.IsNotNull(publishResultIsOptimizedBuildToggle, $"Expected `{nameof(publishResultIsOptimizedBuildToggle)}`");
         }
 
         /// Curry sync Actions from UI => to async Tasks
@@ -120,6 +126,8 @@ namespace SpacetimeDB.Editor
             setDirectoryBtn.clicked += onSetDirectoryBtnClick;
             nameTxt.RegisterCallback<FocusOutEvent>(onNameTxtFocusOut);
             publishBtn.clicked += onPublishBtnClickAsync;
+            publishResultIsOptimizedBuildToggle.RegisterValueChangedCallback(
+                onPublishResultIsOptimizedBuildToggleChanged);
         }
         #endregion // Init
         
@@ -151,6 +159,14 @@ namespace SpacetimeDB.Editor
                 Debug.LogError($"CliError: {e}");
                 throw;
             }
+        }
+        
+        /// Unity does not have a readonly prop for Toggles, yet; hacky workaround.
+        private void onPublishResultIsOptimizedBuildToggleChanged(ChangeEvent<bool> evt)
+        {
+            // Revert to old val
+            publishResultIsOptimizedBuildToggle.SetValueWithoutNotify(evt.previousValue);
+            evt.StopPropagation();
         }
 
         /// Used for init only, for when the persistent ViewDataKey
@@ -290,9 +306,19 @@ namespace SpacetimeDB.Editor
         {
             if (publishResult.HasPublishErr)
             {
-                updateStatus(StringStyle.Error, publishResult.StyledFriendlyErrorMessage 
-                    ?? publishResult.CliError);
-                return;
+                if (publishResult.IsSuccessfulPublish)
+                {
+                    // Just a warning
+                    updateStatus(StringStyle.Success, "Published successfully, +warnings:\n" +
+                        publishResult.StyledFriendlyErrorMessage);
+                }
+                else
+                {
+                    // Critical fail
+                    updateStatus(StringStyle.Error, publishResult.StyledFriendlyErrorMessage 
+                        ?? publishResult.CliError);
+                    return;   
+                }
             }
             
             // Success - reset UI back to normal
@@ -303,9 +329,9 @@ namespace SpacetimeDB.Editor
         private async Task<PublishServerModuleResult> publish()
         {
             _ = startProgressBarAsync(
-                title: "Publishing...",
-                initVal: 2,
-                valIncreasePerSec: 2,
+                barTitle: "Publishing...",
+                initVal: 1,
+                valIncreasePerSec: 1,
                 autoHideOnComplete: false);
             
             publishStatusLabel.text = GetStyledStr(
@@ -335,7 +361,7 @@ namespace SpacetimeDB.Editor
         private void setPublishResultGroupUi(PublishServerModuleResult publishResult)
         {
             // Load the result data
-            publishResultHostTxt.value = publishResult.UploadedToUrlAndPort;
+            publishResultHostTxt.value = publishResult.UploadedToHost;
             publishResultDbAddressTxt.value = publishResult.DatabaseAddressHash;
             publishResultIsOptimizedBuildToggle.value = !publishResult.CouldNotFindWasmOpt;
             
@@ -344,16 +370,16 @@ namespace SpacetimeDB.Editor
             publishResultFoldout.value = true;
         }
 
-        /// Show progress bar, clamped to 5~100, updating every 1s
+        /// Show progress bar, clamped to 1~100, updating every 1s
         /// Stops when reached 100, or if style display is hidden
         private async Task startProgressBarAsync(
-            string title = "Running CLI...",
+            string barTitle = "Running CLI...",
             int initVal = 5, 
             int valIncreasePerSec = 5,
             bool autoHideOnComplete = true)
         {
-            installProgressBar.title = title;
-            installProgressBar.value = Mathf.Clamp(initVal, 5, 100);
+            installProgressBar.title = barTitle;
+            installProgressBar.value = Mathf.Clamp(initVal, 1, 100);
             installProgressBar.style.display = DisplayStyle.Flex;
             
             while (installProgressBar.value < 100 && 
@@ -370,7 +396,7 @@ namespace SpacetimeDB.Editor
         /// Check for install => Install if !found -> Throw if err
         private async Task ensureSpacetimeCliInstalledAsync()
         {
-            _ = startProgressBarAsync(title: "Checking...", autoHideOnComplete: false);
+            _ = startProgressBarAsync(barTitle: "Checking...", autoHideOnComplete: false);
             publishStatusLabel.text = GetStyledStr(
                 StringStyle.Action, 
                 "Checking for SpacetimeDB CLI");

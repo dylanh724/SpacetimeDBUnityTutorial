@@ -22,8 +22,8 @@
             </ui:GroupBox>
             <ui:VisualElement name="Spacer5" style="height: 5px;" />
             <ui:Foldout text="&lt;b&gt;Published Info Cache&lt;/b&gt;" name="PublishResultFoldout" view-data-key="PublishResultFoldout" value="true" style="display: flex; -unity-font-style: normal;">
-                <ui:TextField picking-mode="Ignore" label="Host:" value="{PublishResultIpPortTxt}" name="PublishResultHostTxt" multiline="true" tooltip="host:ip" view-data-key="PublishResultHostTxt" style="white-space: normal; text-overflow: ellipsis;" />
-                <ui:TextField picking-mode="Ignore" label="DB Address:" value="{PublishResultIpPortTxt}" name="PublishResultDbAddressTxt" multiline="true" tooltip="Hash" view-data-key="PublishResultDbAddressTxt" style="white-space: normal; text-overflow: ellipsis;" />
+                <ui:TextField picking-mode="Ignore" label="Host:" value="{PublishResultIpPortTxt}" name="PublishResultHostTxt" multiline="true" tooltip="host:ip" view-data-key="PublishResultHostTxt" readonly="true" style="white-space: normal; text-overflow: ellipsis;" />
+                <ui:TextField picking-mode="Ignore" label="DB Address:" value="{PublishResultIpPortTxt}" name="PublishResultDbAddressTxt" multiline="true" tooltip="The DB Address mapped to your Server Module Name" view-data-key="PublishResultDbAddressTxt" readonly="true" style="white-space: normal; text-overflow: ellipsis;" />
                 <ui:Toggle label="Optimized Build:" name="PublishResultIsOptimizedBuildToggle" view-data-key="PublishResultIsOptimizedBuildToggle" tooltip="via `opt-wasm`" />
             </ui:Foldout>
         </ui:VisualElement>

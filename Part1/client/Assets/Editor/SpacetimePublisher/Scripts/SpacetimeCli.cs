@@ -24,7 +24,9 @@ namespace SpacetimeDB.Editor
         /// Install the SpacetimeDB CLI | https://spacetimedb.com/install 
         public static async Task<SpacetimeCliResult> InstallSpacetimeCliAsync()
         {
-            Debug.Log("Installing SpacetimeDB CLI tool...");
+            if (LOG_LEVEL == CliLogLevel.Info)
+                Debug.Log("Installing SpacetimeDB CLI tool...");
+            
             SpacetimeCliResult result; 
             
             switch (Application.platform)
@@ -45,7 +47,9 @@ namespace SpacetimeDB.Editor
                     throw new NotImplementedException("Unsupported OS");
             }
             
-            Debug.Log($"Installed spacetimeDB CLI tool | {PublisherMeta.DOCS_URL}");
+            if (LOG_LEVEL == CliLogLevel.Info)
+                Debug.Log($"Installed spacetimeDB CLI tool | {PublisherMeta.DOCS_URL}");
+            
             return result;
         }
         
@@ -77,9 +81,14 @@ namespace SpacetimeDB.Editor
 
             // Dive deeper into the context || error
             PublishServerModuleResult publishResult = new(cliResult);
-            if (!publishResult.HasPublishErr && LOG_LEVEL == CliLogLevel.Info)
-                Debug.LogError($"Server module published failed | {publishResult}"); // json
-            else
+
+            if (publishResult.HasPublishErr)
+            {
+                // This may not necessarily be a major or breaking issue.
+                // For example, !optimized builds will show as an "error" rather than warning.
+                Debug.LogError($"Server module publish issue found | {publishResult}"); // json
+            }
+            else if (LOG_LEVEL == CliLogLevel.Info)
                 Debug.Log($"Server module publish success | {publishResult}"); // json
             
             return publishResult;
@@ -136,8 +145,9 @@ namespace SpacetimeDB.Editor
             bool hasOutput = !string.IsNullOrEmpty(cliResult.CliOutput);
             bool hasLogLevelInfoNoErr = LOG_LEVEL == CliLogLevel.Info && !cliResult.HasCliErr;
             string prettyOutput = $"\n```\n<color=yellow>{cliResult.CliOutput}</color>\n```\n";
+            
             if (hasOutput && hasLogLevelInfoNoErr)
-                Debug.Log($"{nameof(SpacetimeCliResult.CliOutput)}: {prettyOutput}");
+                Debug.Log($"CLI Output: {prettyOutput}");
 
             if (cliResult.HasCliErr)
             {
