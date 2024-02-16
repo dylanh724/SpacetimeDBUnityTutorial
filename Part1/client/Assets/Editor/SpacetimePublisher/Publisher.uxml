@@ -24,7 +24,9 @@
             <ui:Foldout text="&lt;b&gt;Published Info Cache&lt;/b&gt;" name="PublishResultFoldout" view-data-key="PublishResultFoldout" value="true" style="display: flex; -unity-font-style: normal;">
                 <ui:TextField picking-mode="Ignore" label="Host:" value="{PublishResultIpPortTxt}" name="PublishResultHostTxt" multiline="true" tooltip="host:ip" view-data-key="PublishResultHostTxt" readonly="true" style="white-space: normal; text-overflow: ellipsis;" />
                 <ui:TextField picking-mode="Ignore" label="DB Address:" value="{PublishResultIpPortTxt}" name="PublishResultDbAddressTxt" multiline="true" tooltip="The DB Address mapped to your Server Module Name" view-data-key="PublishResultDbAddressTxt" readonly="true" style="white-space: normal; text-overflow: ellipsis;" />
-                <ui:Toggle label="Optimized Build:" name="PublishResultIsOptimizedBuildToggle" view-data-key="PublishResultIsOptimizedBuildToggle" tooltip="via `opt-wasm`" />
+                <ui:Toggle label="Optimized Build:" name="PublishResultIsOptimizedBuildToggle" view-data-key="PublishResultIsOptimizedBuildToggle" tooltip="via `opt-wasm`">
+                    <ui:Button text="Install Package" parse-escape-sequences="true" display-tooltip-when-elided="true" name="InstallWasmOptBtn" tooltip="Set &amp; Forget: Globally install `wasm-opt` via npm." style="flex-grow: 1;" />
+                </ui:Toggle>
             </ui:Foldout>
         </ui:VisualElement>
     </ui:VisualElement>

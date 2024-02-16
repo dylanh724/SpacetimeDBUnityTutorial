@@ -36,6 +36,7 @@ namespace SpacetimeDB.Editor
         private TextField publishResultHostTxt; // readonly
         private TextField publishResultDbAddressTxt; // readonly
         private Toggle publishResultIsOptimizedBuildToggle; // readonly via hacky workaround: Only set val via SetValueWithoutNotify()
+        private Button installWasmOptBtn; // Only shows after a publish where wasm-opt was !found        
         #endregion // UI Visual Elements
         
         
@@ -93,6 +94,7 @@ namespace SpacetimeDB.Editor
             publishResultHostTxt = rootVisualElement.Q<TextField>("PublishResultHostTxt");
             publishResultDbAddressTxt = rootVisualElement.Q<TextField>("PublishResultDbAddressTxt");
             publishResultIsOptimizedBuildToggle = rootVisualElement.Q<Toggle>("PublishResultIsOptimizedBuildToggle");
+            installWasmOptBtn = rootVisualElement.Q<Button>("InstallWasmOptBtn");
         }
 
         /// Changing implicit names can easily cause unexpected nulls
@@ -111,10 +113,12 @@ namespace SpacetimeDB.Editor
             Assert.IsNotNull(installProgressBar, $"Expected `{nameof(installProgressBar)}`");
             Assert.IsNotNull(publishStatusLabel, $"Expected `{nameof(publishStatusLabel)}`");
             Assert.IsNotNull(publishBtn, $"Expected `{nameof(publishBtn)}`");
+            
             Assert.IsNotNull(publishResultFoldout, $"Expected `{nameof(publishResultFoldout)}`");
             Assert.IsNotNull(publishResultHostTxt, $"Expected `{nameof(publishResultHostTxt)}`");
             Assert.IsNotNull(publishResultDbAddressTxt, $"Expected `{nameof(publishResultDbAddressTxt)}`");
             Assert.IsNotNull(publishResultIsOptimizedBuildToggle, $"Expected `{nameof(publishResultIsOptimizedBuildToggle)}`");
+            Assert.IsNotNull(installWasmOptBtn, $"Expected `{nameof(installWasmOptBtn)}`");
         }
 
         /// Curry sync Actions from UI => to async Tasks
@@ -128,6 +132,7 @@ namespace SpacetimeDB.Editor
             publishBtn.clicked += onPublishBtnClickAsync;
             publishResultIsOptimizedBuildToggle.RegisterValueChangedCallback(
                 onPublishResultIsOptimizedBuildToggleChanged);
+            installWasmOptBtn.clicked += onInstallWasmOptBtnClick;
         }
         #endregion // Init
         
@@ -175,7 +180,22 @@ namespace SpacetimeDB.Editor
         private void onServerModulePathTxtInitChanged(ChangeEvent<string> evt)
         {
             onDirPathSet();
+            revealPublishResultCacheIfHostExists(openFoldout: null);
             serverModulePathTxt.UnregisterValueChangedCallback(onServerModulePathTxtInitChanged);
+        }
+
+        /// Validates if we at least have a host name before revealing
+        /// bug: If you are calling this from CreateGUI, openFoldout will be ignored.
+        private void revealPublishResultCacheIfHostExists(bool? openFoldout)
+        {
+            if (string.IsNullOrEmpty(publishResultHostTxt.value))
+                return;
+            
+            // Reveal the publish result info cache
+            publishResultFoldout.style.display = DisplayStyle.Flex;
+            
+            if (openFoldout != null)
+                publishResultFoldout.value = (bool)openFoldout;
         }
         
         /// Toggle next section if !null
@@ -199,7 +219,25 @@ namespace SpacetimeDB.Editor
         /// Open link to SpacetimeDB Module docs
         private void onTopBannerBtnClick() =>
             Application.OpenURL(TOP_BANNER_CLICK_LINK);
-        
+
+        /// Curry to an async Task to install `wasm-opt` npm pkg
+        private async void onInstallWasmOptBtnClick() =>
+            await installWasmOptPackageViaNpmAsync();
+
+        /// Install `wasm-opt` npm pkg for a "set and forget" publish optimization boost
+        private async Task installWasmOptPackageViaNpmAsync()
+        {
+            try
+            {
+                
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
+        }
+
         /// Show folder dialog -> Set path label
         private void onSetDirectoryBtnClick()
         {
@@ -369,8 +407,7 @@ namespace SpacetimeDB.Editor
             publishResultIsOptimizedBuildToggle.value = !publishResult.CouldNotFindWasmOpt;
             
             // Show the result group and expand the foldout
-            publishResultFoldout.style.display = DisplayStyle.Flex;
-            publishResultFoldout.value = true;
+            revealPublishResultCacheIfHostExists(openFoldout: true);
         }
 
         /// Show progress bar, clamped to 1~100, updating every 1s
@@ -467,6 +504,7 @@ namespace SpacetimeDB.Editor
         private void setPublishStartUi()
         {
             // Set UI
+            publishResultFoldout.style.display = DisplayStyle.None;
             publishBtn.SetEnabled(false);
             publishStatusLabel.text = GetStyledStr(
                 StringStyle.Action, 
@@ -486,6 +524,9 @@ namespace SpacetimeDB.Editor
             setDirectoryBtn.clicked -= onSetDirectoryBtnClick;
             nameTxt.UnregisterCallback<FocusOutEvent>(onNameTxtFocusOut);
             publishBtn.clicked -= onPublishBtnClickAsync;
+            publishResultIsOptimizedBuildToggle.UnregisterValueChangedCallback(
+                onPublishResultIsOptimizedBuildToggleChanged);
+            installWasmOptBtn.clicked -= onInstallWasmOptBtnClick;
         }
 
         private void OnDisable() => unsetOnActionEvents();
