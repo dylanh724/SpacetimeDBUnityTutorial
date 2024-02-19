@@ -37,6 +37,7 @@ namespace SpacetimeDB.Editor
             None,
             MSB1003_InvalidProjectDir,
             OS10061_ServerHostNotRunning,
+            DBUpdateRejected_PermissionDenied,
             UnknownError,
         }
 
@@ -72,6 +73,17 @@ namespace SpacetimeDB.Editor
                         this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
                             PublisherMeta.StringStyle.Error,
                             "<b>Failed:</b> Invalid server module dir");
+                    }
+                    
+                    // "Error: Database update rejected: Update database `{dbAddressHash}`: Permission denied"
+                    bool hasErrPermissionDenied = cliResult.CliError.Contains("Permission denied");
+                    if (hasErrPermissionDenied)
+                    {
+                        this.PublishErrCode = PublishErrorCode.DBUpdateRejected_PermissionDenied;
+                        this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
+                            PublisherMeta.StringStyle.Error,
+                            "<b>Failed:</b> Database update rejected\n" +
+                            "Permission denied (Invalid Identity?)");
                     }
                 }
             

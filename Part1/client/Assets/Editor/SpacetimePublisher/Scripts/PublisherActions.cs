@@ -19,7 +19,7 @@ namespace SpacetimeDB.Editor
             publishResultFoldout.style.display = DisplayStyle.None;
             
             // ServerModulePathTxt persists: If previously entered, show the publish group
-            bool hasPathSet = !string.IsNullOrEmpty(serverModulePathTxt.value);
+            bool hasPathSet = !string.IsNullOrEmpty(publishModulePathTxt.value);
             if (hasPathSet)
                 revealPublisherGroupUiAsync(); // +Ensures SpacetimeDB CLI is installed async
         }
@@ -43,7 +43,7 @@ namespace SpacetimeDB.Editor
         {
             // Set the server module name placeholder text dynamically, based on the project name
             // Replace non-alphanumeric chars with dashes
-            bool hasName = !string.IsNullOrEmpty(nameTxt.value);
+            bool hasName = !string.IsNullOrEmpty(publishModuleNameTxt.value);
             if (hasName)
                 return; // Keep whatever the user customized
             
@@ -53,7 +53,7 @@ namespace SpacetimeDB.Editor
                 .Replace(unityProjectName, @"[^a-z0-9]", "-")
                 .Replace("client", "server");
             
-            nameTxt.value = projectNameDashed;
+            publishModuleNameTxt.value = projectNameDashed;
         }
         
         /// - Set to the initial state as if no inputs were set.
@@ -156,7 +156,7 @@ namespace SpacetimeDB.Editor
                 StringStyle.Action, 
                 "Publishing Module to SpacetimeDB");
 
-            PublishConfig publishConfig = new(nameTxt.value, serverModulePathTxt.value);
+            PublishConfig publishConfig = new(publishModuleNameTxt.value, publishModulePathTxt.value);
             
             PublishServerModuleResult publishResult;
             try

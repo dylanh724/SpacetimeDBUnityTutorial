@@ -6,6 +6,7 @@ Label {
     -unity-text-align: upper-left;
     -unity-font: url('project://database/Assets/Editor/SpacetimePublisher/Fonts/Inter.ttf?fileID=12800000&guid=0159f667c97f22d4daf25768d0adebca&type=3#Inter');
     -unity-font-definition: initial;
+    -unity-font-style: normal;
 }
 
 .unity-base-text-field__multiline-container {
@@ -21,4 +22,13 @@ Button {
 #PublishResultIsOptimizedBuildToggle > Label:disabled {
     color: rgb(76, 244, 144);
     opacity: 1;
+}
+
+.unity-foldout > Toggle Label {
+    color: rgb(255, 255, 255);
+}
+
+TextField > Label {
+    font-size: 12px;
+    -unity-font-style: normal;
 }

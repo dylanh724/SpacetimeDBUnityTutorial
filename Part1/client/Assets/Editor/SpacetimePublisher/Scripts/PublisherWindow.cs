@@ -17,13 +17,18 @@ namespace SpacetimeDB.Editor
 
         #region UI Visual Elements
         private Button topBannerBtn;
+
+        private Foldout identityFoldout;
+        private DropdownField identitySelectedDropdown;
+        private TextField identityNicknameTxt;
+        private TextField identityEmailTxt;
+
+        private DropdownField publishDropdown;
+        private GroupBox publishPathGroupBox;
+        private Button publishPathSetDirectoryBtn; // "Browse"
+        private TextField publishModulePathTxt;
         
-        private GroupBox setupGroupBox;
-        private Button setDirectoryBtn; // "Browse"
-        private TextField serverModulePathTxt;
-        
-        private GroupBox nameGroupBox;
-        private TextField nameTxt; // Always has a val (fallback system)
+        private TextField publishModuleNameTxt; // Always has a val (fallback system)
 
         private GroupBox publishGroupBox;
         private ProgressBar installProgressBar;
@@ -72,51 +77,61 @@ namespace SpacetimeDB.Editor
             rootVisualElement.styleSheets.Add(styleSheet);
         }
 
+        /// All VisualElement field names should match their #identity in camelCase
         private void setUiElements()
         {
-            topBannerBtn = rootVisualElement.Q<Button>("TopBannerBtn");
+            topBannerBtn = rootVisualElement.Q<Button>(nameof(topBannerBtn));
             
-            setupGroupBox = rootVisualElement.Q<GroupBox>("PathGroupBox");
-            setDirectoryBtn = rootVisualElement.Q<Button>("PathSetDirectoryBtn");
-            serverModulePathTxt = rootVisualElement.Q<TextField>("PathTxt");
+            identityFoldout = rootVisualElement.Q<Foldout>(nameof(identityFoldout));
+            identitySelectedDropdown = rootVisualElement.Q<DropdownField>(nameof(identitySelectedDropdown));
+            identityNicknameTxt = rootVisualElement.Q<TextField>(nameof(identityNicknameTxt));
+            identityEmailTxt = rootVisualElement.Q<TextField>(nameof(identityEmailTxt));
             
-            nameGroupBox = rootVisualElement.Q<GroupBox>("NameGroupBox");
-            nameTxt = rootVisualElement.Q<TextField>("NameTxt");
+            publishDropdown = rootVisualElement.Q<DropdownField>(nameof(publishDropdown));
+            publishModuleNameTxt = rootVisualElement.Q<TextField>(nameof(publishModuleNameTxt));
+            publishPathGroupBox = rootVisualElement.Q<GroupBox>(nameof(publishPathGroupBox));
+            publishPathSetDirectoryBtn = rootVisualElement.Q<Button>(nameof(publishPathSetDirectoryBtn));
+            publishModulePathTxt = rootVisualElement.Q<TextField>(nameof(publishModulePathTxt));
 
-            publishGroupBox = rootVisualElement.Q<GroupBox>("PublishGroupBox");
-            installProgressBar = rootVisualElement.Q<ProgressBar>("InstallProgressBar");
-            publishStatusLabel = rootVisualElement.Q<Label>("PublishStatusLabel");
-            publishBtn = rootVisualElement.Q<Button>("PublishBtn");
+            publishGroupBox = rootVisualElement.Q<GroupBox>(nameof(publishGroupBox));
+            installProgressBar = rootVisualElement.Q<ProgressBar>(nameof(installProgressBar));
+            publishStatusLabel = rootVisualElement.Q<Label>(nameof(publishStatusLabel));
+            publishBtn = rootVisualElement.Q<Button>(nameof(publishBtn));
             
-            publishResultFoldout = rootVisualElement.Q<Foldout>("PublishResultFoldout");
-            publishResultHostTxt = rootVisualElement.Q<TextField>("PublishResultHostTxt");
-            publishResultDbAddressTxt = rootVisualElement.Q<TextField>("PublishResultDbAddressTxt");
-            publishResultIsOptimizedBuildToggle = rootVisualElement.Q<Toggle>("PublishResultIsOptimizedBuildToggle");
-            installWasmOptBtn = rootVisualElement.Q<Button>("InstallWasmOptBtn");
+            publishResultFoldout = rootVisualElement.Q<Foldout>(nameof(publishResultFoldout));
+            publishResultHostTxt = rootVisualElement.Q<TextField>(nameof(publishResultHostTxt));
+            publishResultDbAddressTxt = rootVisualElement.Q<TextField>(nameof(publishResultDbAddressTxt));
+            publishResultIsOptimizedBuildToggle = rootVisualElement.Q<Toggle>(nameof(publishResultIsOptimizedBuildToggle));
+            installWasmOptBtn = rootVisualElement.Q<Button>(nameof(installWasmOptBtn));
         }
 
         /// Changing implicit names can easily cause unexpected nulls
+        /// All VisualElement field names should match their #identity in camelCase
         private void sanityCheckUiElements()
         {
-            Assert.IsNotNull(topBannerBtn, $"Expected `{nameof(topBannerBtn)}`");
+            Assert.IsNotNull(topBannerBtn, $"Expected `#{nameof(topBannerBtn)}`");
             
-            Assert.IsNotNull(setupGroupBox, $"Expected `{nameof(setupGroupBox)}`");
-            Assert.IsNotNull(setDirectoryBtn, $"Expected `{nameof(setDirectoryBtn)}`");
-            Assert.IsNotNull(serverModulePathTxt, $"Expected `{nameof(serverModulePathTxt)}`");
+            Assert.IsNotNull(identityFoldout, $"Expected `#{nameof(identityFoldout)}`");
+            Assert.IsNotNull(identitySelectedDropdown, $"Expected `#{nameof(identitySelectedDropdown)}`");
+            Assert.IsNotNull(identityNicknameTxt, $"Expected `#{nameof(identityNicknameTxt)}`");
+            Assert.IsNotNull(identityEmailTxt, $"Expected `#{nameof(identityEmailTxt)}`");
             
-            Assert.IsNotNull(nameGroupBox, $"Expected `{nameof(nameGroupBox)}`");
-            Assert.IsNotNull(nameTxt, $"Expected `{nameof(nameTxt)}`");
+            Assert.IsNotNull(publishPathGroupBox, $"Expected `#{nameof(publishPathGroupBox)}`");
+            Assert.IsNotNull(publishPathSetDirectoryBtn, $"Expected `#{nameof(publishPathSetDirectoryBtn)}`");
+            Assert.IsNotNull(publishModulePathTxt, $"Expected `#{nameof(publishModulePathTxt)}`");
             
-            Assert.IsNotNull(publishGroupBox, $"Expected `{nameof(publishGroupBox)}`");
-            Assert.IsNotNull(installProgressBar, $"Expected `{nameof(installProgressBar)}`");
-            Assert.IsNotNull(publishStatusLabel, $"Expected `{nameof(publishStatusLabel)}`");
-            Assert.IsNotNull(publishBtn, $"Expected `{nameof(publishBtn)}`");
+            Assert.IsNotNull(publishModuleNameTxt, $"Expected `#{nameof(publishModuleNameTxt)}`");
             
-            Assert.IsNotNull(publishResultFoldout, $"Expected `{nameof(publishResultFoldout)}`");
-            Assert.IsNotNull(publishResultHostTxt, $"Expected `{nameof(publishResultHostTxt)}`");
-            Assert.IsNotNull(publishResultDbAddressTxt, $"Expected `{nameof(publishResultDbAddressTxt)}`");
-            Assert.IsNotNull(publishResultIsOptimizedBuildToggle, $"Expected `{nameof(publishResultIsOptimizedBuildToggle)}`");
-            Assert.IsNotNull(installWasmOptBtn, $"Expected `{nameof(installWasmOptBtn)}`");
+            Assert.IsNotNull(publishGroupBox, $"Expected `#{nameof(publishGroupBox)}`");
+            Assert.IsNotNull(installProgressBar, $"Expected `#{nameof(installProgressBar)}`");
+            Assert.IsNotNull(publishStatusLabel, $"Expected `#{nameof(publishStatusLabel)}`");
+            Assert.IsNotNull(publishBtn, $"Expected `#{nameof(publishBtn)}`");
+            
+            Assert.IsNotNull(publishResultFoldout, $"Expected `#{nameof(publishResultFoldout)}`");
+            Assert.IsNotNull(publishResultHostTxt, $"Expected `#{nameof(publishResultHostTxt)}`");
+            Assert.IsNotNull(publishResultDbAddressTxt, $"Expected `#{nameof(publishResultDbAddressTxt)}`");
+            Assert.IsNotNull(publishResultIsOptimizedBuildToggle, $"Expected `#{nameof(publishResultIsOptimizedBuildToggle)}`");
+            Assert.IsNotNull(installWasmOptBtn, $"Expected `#{nameof(installWasmOptBtn)}`");
         }
         #endregion // Init
     }

@@ -17,10 +17,10 @@ namespace SpacetimeDB.Editor
         private void setOnActionEvents()
         {
             topBannerBtn.clicked += onTopBannerBtnClick;
-            serverModulePathTxt.RegisterValueChangedCallback(onServerModulePathTxtInitChanged); // For init only
-            serverModulePathTxt.RegisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
-            setDirectoryBtn.clicked += onSetDirectoryBtnClick;
-            nameTxt.RegisterCallback<FocusOutEvent>(onNameTxtFocusOut);
+            publishModulePathTxt.RegisterValueChangedCallback(onServerModulePathTxtInitChanged); // For init only
+            publishModulePathTxt.RegisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
+            publishPathSetDirectoryBtn.clicked += OnPublishPathSetDirectoryBtnClick;
+            publishModuleNameTxt.RegisterCallback<FocusOutEvent>(onNameTxtFocusOut);
             publishBtn.clicked += onPublishBtnClickAsync;
             publishResultIsOptimizedBuildToggle.RegisterValueChangedCallback(
                 onPublishResultIsOptimizedBuildToggleChanged);
@@ -31,10 +31,10 @@ namespace SpacetimeDB.Editor
         private void unsetOnActionEvents()
         {
             topBannerBtn.clicked -= onTopBannerBtnClick;
-            serverModulePathTxt.UnregisterValueChangedCallback(onServerModulePathTxtInitChanged); // For init only
-            serverModulePathTxt.UnregisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
-            setDirectoryBtn.clicked -= onSetDirectoryBtnClick;
-            nameTxt.UnregisterCallback<FocusOutEvent>(onNameTxtFocusOut);
+            publishModulePathTxt.UnregisterValueChangedCallback(onServerModulePathTxtInitChanged); // For init only
+            publishModulePathTxt.UnregisterCallback<FocusOutEvent>(onServerModulePathTxtFocusOut);
+            publishPathSetDirectoryBtn.clicked -= OnPublishPathSetDirectoryBtnClick;
+            publishModuleNameTxt.UnregisterCallback<FocusOutEvent>(onNameTxtFocusOut);
             publishBtn.clicked -= onPublishBtnClickAsync;
             publishResultIsOptimizedBuildToggle.UnregisterValueChangedCallback(
                 onPublishResultIsOptimizedBuildToggleChanged);
@@ -59,7 +59,7 @@ namespace SpacetimeDB.Editor
         {
             onDirPathSet();
             revealPublishResultCacheIfHostExists(openFoldout: null);
-            serverModulePathTxt.UnregisterValueChangedCallback(onServerModulePathTxtInitChanged);
+            publishModulePathTxt.UnregisterValueChangedCallback(onServerModulePathTxtInitChanged);
         }
         
         /// Toggle next section if !null
@@ -69,7 +69,7 @@ namespace SpacetimeDB.Editor
             if (_isFilePicking)
                 return;
             
-            bool hasPathSet = !string.IsNullOrEmpty(serverModulePathTxt.value);
+            bool hasPathSet = !string.IsNullOrEmpty(publishModulePathTxt.value);
             if (hasPathSet)
                 revealPublisherGroupUiAsync();
             else
@@ -85,9 +85,9 @@ namespace SpacetimeDB.Editor
             await installWasmOptPackageViaNpmAsync();
         
         /// Show folder dialog -> Set path label
-        private void onSetDirectoryBtnClick()
+        private void OnPublishPathSetDirectoryBtnClick()
         {
-            string pathBefore = serverModulePathTxt.value;
+            string pathBefore = publishModulePathTxt.value;
             // Show folder panel (modal FolderPicker dialog)
             _isFilePicking = true;
             
@@ -104,7 +104,7 @@ namespace SpacetimeDB.Editor
                 return;
             
             // Path changed: set path val + reveal next UI group
-            serverModulePathTxt.value = selectedPath;
+            publishModulePathTxt.value = selectedPath;
             onDirPathSet();
         }
         

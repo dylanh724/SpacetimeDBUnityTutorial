@@ -1,32 +1,39 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
     <Style src="project://database/Assets/Editor/SpacetimePublisher/Publisher.uss?fileID=7433441132597879392&amp;guid=20c9b745db07f9e46bb5d740ec005974&amp;type=3#Publisher" />
-    <ui:VisualElement name="Root" style="flex-grow: 1; background-color: rgba(12, 12, 12, 0.78);">
-        <ui:VisualElement name="Header" style="height: 66px; width: auto;">
-            <ui:Button parse-escape-sequences="true" display-tooltip-when-elided="true" name="TopBannerBtn" tooltip="Open Docs" style="background-image: url(&apos;project://database/Assets/Editor/SpacetimePublisher/Sprites/spacetime-logo-full.png?fileID=2800000&amp;guid=8e8298ff06b7be441bce715299b63855&amp;type=3#spacetime-logo-full&apos;); background-color: rgba(88, 88, 88, 0); flex-shrink: 1; flex-grow: 1; -unity-background-scale-mode: scale-to-fit;" />
+    <ui:VisualElement name="root" style="flex-grow: 1; background-color: rgba(12, 12, 12, 0.78);">
+        <ui:VisualElement name="header" style="height: 66px; width: auto;">
+            <ui:Button parse-escape-sequences="true" display-tooltip-when-elided="true" name="topBannerBtn" tooltip="Open Docs" style="background-image: url(&apos;project://database/Assets/Editor/SpacetimePublisher/Sprites/spacetime-logo-full.png?fileID=2800000&amp;guid=8e8298ff06b7be441bce715299b63855&amp;type=3#spacetime-logo-full&apos;); background-color: rgba(88, 88, 88, 0); flex-shrink: 1; flex-grow: 1; -unity-background-scale-mode: scale-to-fit;" />
         </ui:VisualElement>
-        <ui:VisualElement name="Spacer15" style="height: 15px;" />
-        <ui:VisualElement name="Body" style="flex-grow: 1; height: 94px;">
-            <ui:GroupBox name="NameGroupBox">
-                <ui:TextField picking-mode="Ignore" label="&lt;b&gt;Server Module Name:&lt;/b&gt;" name="NameTxt" tooltip="Choose a unique-dashified-name. Leave empty to use your project name." view-data-key="NameTxt" style="color: rgb(76, 244, 144); -unity-font-style: normal;" />
-            </ui:GroupBox>
-            <ui:GroupBox name="PathGroupBox">
-                <ui:TextField picking-mode="Ignore" label="&lt;b&gt;Server Module Path:&lt;/b&gt;  " name="PathTxt" multiline="true" tooltip="Click the &quot;Browse&quot; button below or paste a path/to/your/server module" view-data-key="PathTxt" style="white-space: normal; text-overflow: ellipsis;" />
-                <ui:Button text="..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="PathSetDirectoryBtn" tooltip="Browse for your server module project dir path" style="-unity-font-style: normal; font-size: 28px; height: 25px; -unity-text-align: lower-center; padding-bottom: 2px;" />
-            </ui:GroupBox>
-            <ui:GroupBox name="PublishGroupBox">
-                <ui:Button text="Publish" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishBtn" tooltip="This will issue a `spacetime publish` using your module name+path" style="height: 50px; -unity-font-style: bold; font-size: 16px; display: flex;" />
-                <ui:ProgressBar value="5" title="Running CLI..." name="InstallProgressBar" tooltip="Allows for the `spacetime` CLI command" low-value="5" style="display: none;" />
-                <ui:ScrollView name="PublishStatusScrollView" style="max-height: 200px;">
-                    <ui:Label tabindex="-1" text="{PublishStatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PublishStatusLabel" style="color: rgb(182, 192, 207); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
-                </ui:ScrollView>
-            </ui:GroupBox>
-            <ui:VisualElement name="Spacer5" style="height: 5px;" />
-            <ui:Foldout text="&lt;b&gt;Published Info Cache&lt;/b&gt;" name="PublishResultFoldout" view-data-key="PublishResultFoldout" value="true" style="display: flex; -unity-font-style: normal;">
-                <ui:TextField picking-mode="Ignore" label="Host:" value="{PublishResultHostTxt}" name="PublishResultHostTxt" multiline="true" tooltip="host:ip" view-data-key="PublishResultHostTxt" readonly="true" />
-                <ui:TextField picking-mode="Ignore" label="DB Address:" value="{PublishResultDbAddressTxt}" name="PublishResultDbAddressTxt" multiline="true" tooltip="The DB Address mapped to your Server Module Name" view-data-key="PublishResultDbAddressTxt" readonly="true" />
-                <ui:VisualElement name="OptimizedHorizontal" style="flex-grow: 1; flex-direction: row;">
-                    <ui:Toggle label="Optimized Build:" name="PublishResultIsOptimizedBuildToggle" view-data-key="PublishResultIsOptimizedBuildToggle" tooltip="via `opt-wasm`" value="false" />
-                    <ui:Button text="Install Package" parse-escape-sequences="true" display-tooltip-when-elided="true" name="InstallWasmOptBtn" tooltip="Set &amp; Forget: Globally install `wasm-opt` via npm." style="flex-grow: 1;" />
+        <ui:VisualElement name="spacer15" style="height: 15px;" />
+        <ui:VisualElement name="body" style="flex-grow: 1; height: 94px;">
+            <ui:Foldout text="&lt;b&gt;Identity&lt;/b&gt;" name="identityFoldout" view-data-key="IdentityFoldout" value="true" style="display: flex; -unity-font-style: normal;">
+                <ui:DropdownField label="Selected Identity" index="-1" choices="System.Collections.Generic.List`1[System.String]" name="identitySelectedDropdown" view-data-key="IdentitySelectedDropdown" tooltip="This will change between target server hosts" />
+                <ui:TextField picking-mode="Ignore" label="Nickname:" name="identityNicknameTxt" multiline="true" tooltip="Mapped to your DB Address for convenience" view-data-key="identityNicknameTxt" readonly="true" />
+                <ui:TextField picking-mode="Ignore" label="Email:" name="identityEmailTxt" multiline="true" tooltip="You don&apos;t need to confirm this" view-data-key="identityEmailTxt" readonly="true" />
+                <ui:Button text="Create New Identity" parse-escape-sequences="true" display-tooltip-when-elided="true" name="identityNewBtn" tooltip="Create a new identity for the selected server" style="height: 25px; padding-bottom: 2px;" />
+            </ui:Foldout>
+            <ui:VisualElement name="spacer10" style="height: 10px;" />
+            <ui:Foldout text="&lt;b&gt;Publish&lt;/b&gt;" name="publishDropdown" view-data-key="PublishConfigDropdown" value="true" style="display: flex; -unity-font-style: normal;">
+                <ui:TextField picking-mode="Ignore" label="Server Module Name:" name="publishModuleNameTxt" tooltip="Choose a unique-dashified-name. Leave empty to use your project name." view-data-key="publishModuleNameTxt" />
+                <ui:GroupBox name="publishPathGroupBox" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;">
+                    <ui:TextField picking-mode="Ignore" label="Server Module Path:  " name="publishModulePathTxt" multiline="true" tooltip="Click the &quot;Browse&quot; button below or paste a path/to/your/server module" view-data-key="publishModulePathTxt" />
+                    <ui:Button text="..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="publishPathSetDirectoryBtn" tooltip="Browse for your server module project dir path" style="height: 25px; padding-bottom: 2px;" />
+                </ui:GroupBox>
+                <ui:GroupBox name="publishGroupBox" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;">
+                    <ui:Button text="Publish" parse-escape-sequences="true" display-tooltip-when-elided="true" name="publishBtn" tooltip="This will issue a `spacetime publish` using your module name+path" style="height: 50px; -unity-font-style: bold; font-size: 16px; display: flex;" />
+                    <ui:ProgressBar value="5" title="Running CLI..." name="installProgressBar" tooltip="Allows for the `spacetime` CLI command" low-value="5" style="display: none;" />
+                    <ui:ScrollView name="publishStatusScrollView" style="max-height: 200px;">
+                        <ui:Label tabindex="-1" text="{PublishStatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="publishStatusLabel" style="color: rgb(182, 192, 207); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
+                    </ui:ScrollView>
+                </ui:GroupBox>
+            </ui:Foldout>
+            <ui:VisualElement name="spacer5" style="height: 5px;" />
+            <ui:Foldout text="&lt;b&gt;Published Info Cache&lt;/b&gt;" name="publishResultFoldout" view-data-key="PublishResultFoldout" value="true" style="display: flex; -unity-font-style: normal;">
+                <ui:TextField picking-mode="Ignore" label="Host:" value="{PublishResultHostTxt}" name="publishResultHostTxt" multiline="true" tooltip="host:ip" view-data-key="publishResultHostTxt" readonly="true" />
+                <ui:TextField picking-mode="Ignore" label="DB Address:" value="{PublishResultDbAddressTxt}" name="publishResultDbAddressTxt" multiline="true" tooltip="The DB Address mapped to your Server Module Name" view-data-key="publishResultDbAddressTxt" readonly="true" />
+                <ui:VisualElement name="optimizedHorizontal" style="flex-grow: 1; flex-direction: row;">
+                    <ui:Toggle label="Optimized Build:" name="publishResultIsOptimizedBuildToggle" view-data-key="publishResultIsOptimizedBuildToggle" tooltip="via `opt-wasm`" value="false" />
+                    <ui:Button text="Install Package" parse-escape-sequences="true" display-tooltip-when-elided="true" name="installWasmOptBtn" tooltip="Set &amp; Forget: Globally install `wasm-opt` via npm." style="flex-grow: 1;" />
                 </ui:VisualElement>
             </ui:Foldout>
         </ui:VisualElement>
