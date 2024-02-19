@@ -1,21 +1,22 @@
 namespace SpacetimeDB.Editor
 {
-    /// SpacetimeDB CLI Identity { Nickname, Email }
+    /// SpacetimeDB CLI Identity { Nickname, IsDefault }
     public class SpacetimeIdentity
     {
         /// Usage: "My-Case-InSeNsItIvE-Nickname" (underscores are also ok)
-        public readonly string Nickname;
+        public string Nickname { get; private set; }
 
-        /// Usage: "a@b.c" || "a+1@b.c"
-        public readonly string Email;
-
-        public override string ToString() => $"{Nickname} <{Email}>";
+        public bool IsDefault { get; private set; }
+        
+        public override string ToString() => $"{Nickname} (isDefault? {IsDefault})";
         
 
-        public SpacetimeIdentity(string nickname, string email)
+        public SpacetimeIdentity(
+            string nickname, 
+            bool isDefault = false)
         {
             this.Nickname = nickname;
-            this.Email = email;
+            this.IsDefault = isDefault;
         }
     }
 }

@@ -13,7 +13,7 @@ namespace SpacetimeDB.Editor
         /// (!) While this may be a CLI error, it could be a false positive
         /// for what you really want to do. For example, `spacetime publish`
         /// will succeed, but throw a CliError for `wasm-opt` not found (unoptimized build).
-        public bool HasCliErr => !string.IsNullOrEmpty(CliError);
+        public bool HasCliErr => !string.IsNullOrWhiteSpace(CliError);
         
         
         public SpacetimeCliResult(string cliOutput, string cliError)

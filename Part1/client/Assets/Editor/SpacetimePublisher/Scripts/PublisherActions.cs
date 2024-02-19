@@ -9,25 +9,72 @@ namespace SpacetimeDB.Editor
 {
     /// While `PublisherWindowCallbacks` is for direct-user UI interactions,
     /// These actions trigger the middleware between the UI and CLI.
-    /// TODO: Mv all UI sets to PublisherWindow[Callbacks]
     public partial class PublisherWindow
     {
         #region Init from PublisherWindow.CreateGUI
-        /// Gets list of identity nicknames from CLI
-        private async Task<List<string>> onGetSetIdentities()
+        /// Try to get get list of Identities from CLI
+        private async Task getIdentitiesSetDropdown()
         {
             GetIdentitiesResult getIdentitiesResult;
             try
             {
-                getIdentitiesResult = await SpacetimeDbCli.GetIdentitiesAsync();
-            }
+                getIdentitiesResult = await SpacetimeDbCli.GetSetIdentitiesAsync();
+            } 
             catch (Exception e)
-            {
+            { 
                 Debug.LogError($"Error: {e}");
                 throw;
             }
             
-            return getIdentitiesResult.IdentityNicknames;
+            // Process result and update UI
+            bool isSuccess = getIdentitiesResult.HasIdentity;
+            if (isSuccess)
+                onGetSetIdentitiesSuccess(getIdentitiesResult.Identities);
+            else
+                onGetSetIdentitiesFail(getIdentitiesResult);
+        }
+
+        private void onGetSetIdentitiesFail(GetIdentitiesResult getIdentitiesResult)
+        {
+            // Hide dropdown, reveal new ui group
+            Debug.Log("No identities found - revealing new identity group");
+            
+            identitySelectedDropdown.choices.Clear();
+            identitySelectedDropdown.style.display = DisplayStyle.None;
+            identityNewGroupbox.style.display = DisplayStyle.Flex;
+        }
+
+        /// Set the identity dropdown. TODO: Do we have any reason to cache this list?
+        private void onGetSetIdentitiesSuccess(List<SpacetimeIdentity> identities)
+        {
+            // Logs for each found, with default shown
+            foreach (SpacetimeIdentity identity in identities)
+                Debug.Log($"Found identity: {identity}");
+            
+            // Set the dropdown with the newIdentity nicknames
+            identitySelectedDropdown.value = "";
+            identitySelectedDropdown.choices.Clear();
+            
+            // Setting will trigger the onIdentitySelectedDropdownChanged event @ PublisherWindow
+            for (int i = 0; i < identities.Count; i++)
+            {
+                SpacetimeIdentity identity = identities[i];
+                identitySelectedDropdown.choices.Add(identity.Nickname);
+
+                if (identity.IsDefault)
+                    identitySelectedDropdown.index = i;
+            }
+            
+            // Allow selection, show [+] new reveal ui btn
+            identitySelectedDropdown.pickingMode = PickingMode.Position;
+            identityAddNewShowUiBtn.style.display = DisplayStyle.Flex;
+            
+            // Hide UI
+            identityStatusLabel.style.display = DisplayStyle.None;
+            identityNewGroupbox.style.display = DisplayStyle.None;
+            
+            // Show the next section
+            publishFoldout.style.display = DisplayStyle.Flex;
         }
         #endregion // Init from PublisherWindow.CreateGUI
         
@@ -39,6 +86,9 @@ namespace SpacetimeDB.Editor
             // We just updated the path - hide old publish result cache
             publishResultFoldout.style.display = DisplayStyle.None;
             
+            // Set the tooltip to equal the path, since it's likely cutoff
+            publishModulePathTxt.tooltip = publishModulePathTxt.value;
+            
             // ServerModulePathTxt persists: If previously entered, show the publish group
             bool hasPathSet = !string.IsNullOrEmpty(publishModulePathTxt.value);
             if (hasPathSet)
@@ -49,7 +99,9 @@ namespace SpacetimeDB.Editor
         /// bug: If you are calling this from CreateGUI, openFoldout will be ignored.
         private void revealPublishResultCacheIfHostExists(bool? openFoldout)
         {
-            if (string.IsNullOrEmpty(publishResultHostTxt.value))
+            bool hasVal = string.IsNullOrEmpty(publishResultHostTxt.value);
+            bool isPlaceholderVal = publishResultHostTxt.value.StartsWith("{"); 
+            if (hasVal || isPlaceholderVal)
                 return;
             
             // Reveal the publish result info cache
@@ -84,11 +136,16 @@ namespace SpacetimeDB.Editor
         ///       any persistence may override this.
         private void resetUi()
         {
-            identitySelectedDropdown.style.display = DisplayStyle.None;
+            // identitySelectedDropdown.style.display = DisplayStyle.None;
+            // identitySelectedDropdown.index = -1;
+            identityAddNewShowUiBtn.style.display = DisplayStyle.None;
+            identityNewGroupbox.style.display = DisplayStyle.None;
+            identitySelectedDropdown.choices.Clear(); 
             identitySelectedDropdown.index = -1;
-            identityNicknameTxt.value = "";
+            identitySelectedDropdown.value = GetStyledStr(StringStyle.Action, "Searching..."); 
             identityStatusLabel.style.display = DisplayStyle.None;
-            
+            identityAddBtn.SetEnabled(false);
+             
             publishFoldout.style.display = DisplayStyle.None;
             publishGroupBox.style.display = DisplayStyle.None;
             installProgressBar.style.display = DisplayStyle.None;
@@ -245,11 +302,6 @@ namespace SpacetimeDB.Editor
         /// Check for install => Install if !found -> Throw if err
         private async Task ensureSpacetimeCliInstalledAsync()
         {
-            _ = startProgressBarAsync(barTitle: "Checking...", autoHideOnComplete: false);
-            publishStatusLabel.text = GetStyledStr(
-                StringStyle.Action, 
-                "Checking for SpacetimeDB CLI");
-            
             // Check if Spacetime CLI is installed => install, if !found
             bool isSpacetimeCliInstalled;
 
@@ -260,18 +312,14 @@ namespace SpacetimeDB.Editor
             catch (Exception e)
             {
                 updateStatus(StringStyle.Error, e.Message);
-                installProgressBar.style.display = DisplayStyle.None;
                 throw;
             }
 
             if (isSpacetimeCliInstalled)
-            {
-                installProgressBar.style.display = DisplayStyle.None;
                 return;
-            }
             
             // Command !found: Update status => Install now
-            installProgressBar.title = "Installing...";
+            _ = startProgressBarAsync(barTitle: "Installing...", autoHideOnComplete: true);
             publishStatusLabel.text = GetStyledStr(
                 StringStyle.Action, 
                 "Installing SpacetimeDB CLI");
@@ -360,32 +408,41 @@ namespace SpacetimeDB.Editor
             identityAddBtn.SetEnabled(false);
             identityStatusLabel.text = GetStyledStr(StringStyle.Action, $"Adding {nickname}...");
             identityStatusLabel.style.display = DisplayStyle.Flex;
+            publishResultFoldout.style.display = DisplayStyle.None;
             
-            // Add identity
-            NewIdentityRequest newIdentityRequest = new(nickname, email);
-            SpacetimeCliResult cliResult = await SpacetimeDbCli.AddNewIdentityAsync(newIdentityRequest);
-            onAddNewIdentityDone(nickname, cliResult);
+            // Add newIdentity
+            NewNewIdentityRequest newNewIdentityRequest = new(nickname, email);
+            SpacetimeCliResult cliResult = await SpacetimeDbCli.AddNewIdentityAsync(newNewIdentityRequest);
+            SpacetimeIdentity identity = new(nickname, isDefault:true);
+            onAddNewIdentityDone(identity, cliResult);
         }
 
-        private void onAddNewIdentityDone(string nickname, SpacetimeCliResult cliResult)
+        private void onAddNewIdentityDone(SpacetimeIdentity identity, SpacetimeCliResult cliResult)
         {
             // Common
-            identityAddBtn.SetEnabled(true);
             
             if (cliResult.HasCliErr)
             {
                 // Fail
+                identityAddBtn.SetEnabled(true);
                 identityStatusLabel.text = GetStyledStr(
                     StringStyle.Error, 
-                    $"<b>Failed to add `{nickname}`</b>: {cliResult.CliError}");
+                    $"<b>Failed to add `{identity.Nickname}`</b>: {cliResult.CliError}");
                 
                 identityStatusLabel.style.display = DisplayStyle.Flex;
             }
 
-            // Success: Add to dropdown + show
+            // Success: Add to dropdown + set default + show. Hide the [+] add group.
             // Don't worry about caching choices; we'll get the new choices via CLI each load
-            identityAddBtn.text = GetStyledStr(StringStyle.Success, $"Added `{nickname}`");
-            identitySelectedDropdown.choices.Add(nickname);
+            Debug.Log($"Added new identity success: {identity.Nickname}");
+            onGetSetIdentitiesSuccess(new List<SpacetimeIdentity> { identity });
+        }
+
+        /// We have at least 1+ newIdentity now
+        private void showIdentitiesDropdown()
+        {
+            identitySelectedDropdown.style.display = DisplayStyle.Flex;
+            identitySelectedDropdown.index = 0;
         }
     }
 }

@@ -20,11 +20,12 @@ namespace SpacetimeDB.Editor
             topBannerBtn.clicked += onTopBannerBtnClick;
             
             identitySelectedDropdown.RegisterValueChangedCallback(onIdentitySelectedDropdownChanged); // Show if !null
+            identityAddNewShowUiBtn.clicked += onIdentityAddNewShowUiBtnClick; // Toggle reveals the "new identity" groupbox UI
             identityNicknameTxt.RegisterValueChangedCallback(onIdentityNicknameTxtChanged); // Replace spaces with dashes
             identityNicknameTxt.RegisterCallback<FocusOutEvent>(onIdentityNicknameFocusOut);
             identityEmailTxt.RegisterValueChangedCallback(onIdentityEmailTxtChanged); // Normalize email chars
             identityEmailTxt.RegisterCallback<FocusOutEvent>(onIdentityEmailTxtFocusOut); // If valid, enable Add New Identity btn
-            identityAddBtn.clicked += onIdentityAddBtnClickAsync; // Add new identity
+            identityAddBtn.clicked += onIdentityAddBtnClickAsync; // Add new newIdentity
             
             publishModulePathTxt.RegisterValueChangedCallback(onPublishModulePathTxtInitChanged); // For init only
             publishModulePathTxt.RegisterCallback<FocusOutEvent>(onPublishModulePathTxtFocusOut); // If !empty, Reveal next UI grou
@@ -94,13 +95,13 @@ namespace SpacetimeDB.Editor
                 identityEmailTxt.SetValueWithoutNotify(evt.previousValue); // Revert non-email attempt
         }
         
-        /// This is hidden, by default, until a first identity is added
+        /// This is hidden, by default, until a first newIdentity is added
         private void onIdentitySelectedDropdownChanged(ChangeEvent<string> evt)
         {
             bool selectedAnything = identitySelectedDropdown.index >= 0;
             bool isHidden = identitySelectedDropdown.style.display == DisplayStyle.None;
             
-            // We have "some" identity loaded by runtime code; show this dropdown
+            // We have "some" newIdentity loaded by runtime code; show this dropdown
             if (selectedAnything && isHidden)
                 identitySelectedDropdown.style.display = DisplayStyle.Flex;
         }
@@ -114,11 +115,11 @@ namespace SpacetimeDB.Editor
             publishModulePathTxt.UnregisterValueChangedCallback(onPublishModulePathTxtInitChanged);
         }
         
-        /// Toggle identity btn enabled based on email + nickname being valid
+        /// Toggle newIdentity btn enabled based on email + nickname being valid
         private void onIdentityNicknameFocusOut(FocusOutEvent evt) =>
             checkIdentityReqsToggleIdentityBtn();
         
-        /// Toggle identity btn enabled based on email + nickname being valid
+        /// Toggle newIdentity btn enabled based on email + nickname being valid
         private void onIdentityEmailTxtFocusOut(FocusOutEvent evt) =>
             checkIdentityReqsToggleIdentityBtn();
         
@@ -148,6 +149,24 @@ namespace SpacetimeDB.Editor
         /// Curry to an async Task to install `wasm-opt` npm pkg
         private async void onInstallWasmOptBtnClick() =>
             await installWasmOptPackageViaNpmAsync();
+        
+        /// Toggles the "new identity" group UI
+        private void onIdentityAddNewShowUiBtnClick()
+        {
+            bool isHidden = identityNewGroupbox.style.display == DisplayStyle.None;
+            if (isHidden)
+            {
+                // Show
+                identityNewGroupbox.style.display = DisplayStyle.Flex;
+                identityAddNewShowUiBtn.text = GetStyledStr(StringStyle.Success, "-"); // Show opposite, styled
+            }
+            else
+            {
+                // Hide
+                identityNewGroupbox.style.display = DisplayStyle.None;
+                identityAddNewShowUiBtn.text = "+"; // Show opposite
+            }
+        }
         
         /// Show folder dialog -> Set path label
         private void OnPublishPathSetDirectoryBtnClick()

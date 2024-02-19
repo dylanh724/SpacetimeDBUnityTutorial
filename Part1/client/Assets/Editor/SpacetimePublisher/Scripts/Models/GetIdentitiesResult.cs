@@ -1,16 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using PlasticPipe.PlasticProtocol.Messages;
 
 namespace SpacetimeDB.Editor
 {
-    /// Result of `spacetime identity list`
+    /// Result of `spacetime newIdentity list`
     public class GetIdentitiesResult : SpacetimeCliResult
     {
-        public List<string> IdentityNicknames { get; private set; }
-        public int DefaultIdentityIndex { get; private set; }
-        public bool HasIdentity => IdentityNicknames.Count > 0;
+        public List<SpacetimeIdentity> Identities { get; private set; }
+        public bool HasIdentity => Identities?.Count > 0;
         
         
         public GetIdentitiesResult(SpacetimeCliResult cliResult)
@@ -36,24 +34,32 @@ namespace SpacetimeDB.Editor
             string[] lines = CliOutput.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries); 
 
             // Initialize the list to store nicknames
-            this.IdentityNicknames = new List<string>();
+            this.Identities = new List<SpacetimeIdentity>();
 
             // Corrected regex pattern to ensure it captures the nickname following the hash and spaces
             // This pattern assumes the nickname is the last element in the line after the hash
-            const string pattern = @"\b[a-fA-F0-9]{64}\s+(.+)$";
+            const string pattern = @"(?:\*\*\*\s+)?\b[a-fA-F0-9]{64}\s+(.+)$";
 
             foreach (string line in lines)
             {
                 Match match = Regex.Match(line, pattern);
-                // Check if the line matches the pattern and ensure the match includes the nickname group
-                if (match.Success && match.Groups.Count > 1)
-                {
-                    // Extract and add the nickname to the list; it's the second group in the match
-                    string potentialNickname = match.Groups[1].Value.Trim();
-                    if (!string.IsNullOrWhiteSpace(potentialNickname))
-                        IdentityNicknames.Add(potentialNickname);
-                }
+                if (!match.Success || match.Groups.Count <= 1)
+                    continue;
+                
+                // Extract potential match
+                string potentialNickname = match.Groups[1].Value.Trim();
+                if (!string.IsNullOrWhiteSpace(potentialNickname))
+                    onIdentityFound(line, potentialNickname);
             }
+        }
+        
+        /// Set identityNicknames and isDefault
+        private void onIdentityFound(string line, string nickname)
+        {
+            // Determine if the newIdentity is marked as default by checking if the line contains ***
+            bool isDefault = line.Contains("***");
+            SpacetimeIdentity identity = new(nickname, isDefault);
+            Identities.Add(identity);
         }
     }
 }

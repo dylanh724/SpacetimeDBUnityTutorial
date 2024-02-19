@@ -27,6 +27,15 @@ namespace SpacetimeDB.Editor
         public string DatabaseAddressHash { get; private set; }
 
         public bool IsLocal { get; private set; }
+        
+        public DbPublishType PublishType { get; private set; }
+
+        public enum DbPublishType
+        {
+            Unknown,
+            Created,
+            Updated,
+        }
         #endregion // Success
 
 
@@ -151,7 +160,7 @@ namespace SpacetimeDB.Editor
                 this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
                     PublisherMeta.StringStyle.Error,
                     "<b>Failed:</b> Database update rejected\n" +
-                    "Permission denied (Invalid Identity?)");
+                    "Permission denied - unexpected identity<>module name match");
             }
         }
 
@@ -183,12 +192,25 @@ namespace SpacetimeDB.Editor
             const string updatedPattern = @"Updated database with domain:.+address: (\w+)";
             Match match = Regex.Match(CliOutput, updatedPattern);
             if (match.Success)
+            {
+                // Success - Updated
+                this.PublishType = DbPublishType.Updated;
                 return match.Groups[1].Value;
+            }
             
             // Check for created
             const string createdPattern = @"Created new database with address: (\S+)";
             match = Regex.Match(CliOutput, createdPattern);
-            return match.Success ? match.Groups[1].Value : null;
+            {
+                if (!match.Success)
+                    return match.Success ? match.Groups[1].Value : null; // fail - unknown
+
+                // Success - Created
+                this.PublishType = DbPublishType.Created;
+                return match.Groups[1].Value;
+
+                // Fail - Unknown
+            }
         }
 
         /// Returns a json summary

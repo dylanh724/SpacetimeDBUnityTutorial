@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -178,14 +179,6 @@ namespace SpacetimeDB.Editor
             return onPublishServerModuleDone(cliResult);
         }
         
-        /// Uses the `spacetime identity new` CLI command, then set as default.
-        public static async Task<SpacetimeCliResult> AddNewIdentityAsync(NewIdentityRequest newIdentityRequest)
-        {
-            string argSuffix = $"spacetime identity new {newIdentityRequest} -d"; // -d == set as default
-            SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
-            return cliResult;
-        }
-        
         /// Uses the `npm install -g wasm-opt` CLI command
         public static async Task<SpacetimeCliResult> InstallWasmOptPkgAsync()
         {
@@ -217,17 +210,25 @@ namespace SpacetimeDB.Editor
                 Debug.LogError($"Server module publish issue found | {publishResult}"); // json
             }
             else if (LOG_LEVEL == CliLogLevel.Info)
-                Debug.Log($"Server module publish success | {publishResult}"); // json
+                Debug.Log($"Server module publish ({publishResult.PublishType}) success | {publishResult}"); // json
             
             return publishResult;
         }
         
         /// Uses the `spacetime identity list` CLI command
-        public static async Task<GetIdentitiesResult> GetIdentitiesAsync()
+        public static async Task<GetIdentitiesResult> GetSetIdentitiesAsync() 
         {
             SpacetimeCliResult cliResult = await runCliCommandAsync("spacetime identity list");
-            GetIdentitiesResult getIdentitiesResult = new(cliResult); 
-            throw new NotImplementedException("TODO");
+            GetIdentitiesResult getIdentitiesResult = new(cliResult);
+            return getIdentitiesResult;
+        }
+        
+        /// Uses the `spacetime identity new` CLI command, then set as default.
+        public static async Task<SpacetimeCliResult> AddNewIdentityAsync(NewNewIdentityRequest newNewIdentityRequest)
+        {
+            string argSuffix = $"spacetime identity new {newNewIdentityRequest} -d"; // -d == set as default
+            SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
+            return cliResult;
         }
         #endregion // High Level CLI Actions
     }

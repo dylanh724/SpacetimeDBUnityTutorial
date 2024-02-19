@@ -20,6 +20,8 @@ namespace SpacetimeDB.Editor
 
         private Foldout identityFoldout;
         private DropdownField identitySelectedDropdown;
+        private Button identityAddNewShowUiBtn;
+        private GroupBox identityNewGroupbox;
         private TextField identityNicknameTxt;
         private TextField identityEmailTxt;
         private Button identityAddBtn;
@@ -57,7 +59,7 @@ namespace SpacetimeDB.Editor
         /// Add style to the UI window; subscribe to click actions.
         /// High-level event chain handler.
         /// (!) Persistent vals will NOT load immediately here; await them at setOnActionEvents
-        public void CreateGUI()
+        public async void CreateGUI()
         {
             // Init styles, bind fields to ui, sub to events
             initVisualTreeStyles();
@@ -67,7 +69,9 @@ namespace SpacetimeDB.Editor
             // Fields set from here
             resetUi();
             setOnActionEvents(); // @ PublisherWindowCallbacks.cs
-            _ = onGetSetIdentities(); // @ PublisherActions.cs
+            
+            // Load other vals dynamically (from CLI)
+            await getIdentitiesSetDropdown(); // @ PublisherActions.cs => result will reveal more UI
         }
 
         private void initVisualTreeStyles()
@@ -80,13 +84,15 @@ namespace SpacetimeDB.Editor
             rootVisualElement.styleSheets.Add(styleSheet);
         }
 
-        /// All VisualElement field names should match their #identity in camelCase
+        /// All VisualElement field names should match their #newIdentity in camelCase
         private void setUiElements()
         {
             topBannerBtn = rootVisualElement.Q<Button>(nameof(topBannerBtn));
             
             identityFoldout = rootVisualElement.Q<Foldout>(nameof(identityFoldout));
             identitySelectedDropdown = rootVisualElement.Q<DropdownField>(nameof(identitySelectedDropdown));
+            identityAddNewShowUiBtn = rootVisualElement.Q<Button>(nameof(identityAddNewShowUiBtn));
+            identityNewGroupbox = rootVisualElement.Q<GroupBox>(nameof(identityNewGroupbox));
             identityNicknameTxt = rootVisualElement.Q<TextField>(nameof(identityNicknameTxt));
             identityEmailTxt = rootVisualElement.Q<TextField>(nameof(identityEmailTxt));
             identityAddBtn = rootVisualElement.Q<Button>(nameof(identityAddBtn));
@@ -111,13 +117,15 @@ namespace SpacetimeDB.Editor
         }
 
         /// Changing implicit names can easily cause unexpected nulls
-        /// All VisualElement field names should match their #identity in camelCase
+        /// All VisualElement field names should match their #newIdentity in camelCase
         private void sanityCheckUiElements()
         {
             Assert.IsNotNull(topBannerBtn, $"Expected `#{nameof(topBannerBtn)}`");
             
             Assert.IsNotNull(identityFoldout, $"Expected `#{nameof(identityFoldout)}`");
             Assert.IsNotNull(identitySelectedDropdown, $"Expected `#{nameof(identitySelectedDropdown)}`");
+            Assert.IsNotNull(identityAddNewShowUiBtn, $"Expected `#{nameof(identityAddNewShowUiBtn)}`");
+            Assert.IsNotNull(identityNewGroupbox, $"Expected `#{nameof(identityNewGroupbox)}`");
             Assert.IsNotNull(identityNicknameTxt, $"Expected `#{nameof(identityNicknameTxt)}`");
             Assert.IsNotNull(identityEmailTxt, $"Expected `#{nameof(identityEmailTxt)}`");
             Assert.IsNotNull(identityAddBtn, $"Expected `#{nameof(identityAddBtn)}`");
