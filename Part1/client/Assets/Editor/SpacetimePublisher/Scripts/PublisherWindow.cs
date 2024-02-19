@@ -23,6 +23,7 @@ namespace SpacetimeDB.Editor
         private TextField identityNicknameTxt;
         private TextField identityEmailTxt;
         private Button identityAddBtn;
+        private Label identityStatusLabel;
 
         private Foldout publishFoldout;
         private GroupBox publishPathGroupBox;
@@ -66,6 +67,7 @@ namespace SpacetimeDB.Editor
             // Fields set from here
             resetUi();
             setOnActionEvents(); // @ PublisherWindowCallbacks.cs
+            _ = onGetSetIdentities(); // @ PublisherActions.cs
         }
 
         private void initVisualTreeStyles()
@@ -88,6 +90,7 @@ namespace SpacetimeDB.Editor
             identityNicknameTxt = rootVisualElement.Q<TextField>(nameof(identityNicknameTxt));
             identityEmailTxt = rootVisualElement.Q<TextField>(nameof(identityEmailTxt));
             identityAddBtn = rootVisualElement.Q<Button>(nameof(identityAddBtn));
+            identityStatusLabel = rootVisualElement.Q<Label>(nameof(identityStatusLabel));
             
             publishFoldout = rootVisualElement.Q<Foldout>(nameof(publishFoldout));
             publishModuleNameTxt = rootVisualElement.Q<TextField>(nameof(publishModuleNameTxt));
@@ -118,6 +121,7 @@ namespace SpacetimeDB.Editor
             Assert.IsNotNull(identityNicknameTxt, $"Expected `#{nameof(identityNicknameTxt)}`");
             Assert.IsNotNull(identityEmailTxt, $"Expected `#{nameof(identityEmailTxt)}`");
             Assert.IsNotNull(identityAddBtn, $"Expected `#{nameof(identityAddBtn)}`");
+            Assert.IsNotNull(identityStatusLabel, $"Expected `#{nameof(identityStatusLabel)}`");
             
             Assert.IsNotNull(publishFoldout, $"Expected `#{nameof(publishFoldout)}`");
             Assert.IsNotNull(publishModuleNameTxt, $"Expected `#{nameof(publishModuleNameTxt)}`");

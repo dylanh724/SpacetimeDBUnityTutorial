@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -7,9 +8,19 @@ using static SpacetimeDB.Editor.PublisherMeta;
 namespace SpacetimeDB.Editor
 {
     /// While `PublisherWindowCallbacks` is for direct-user UI interactions,
-    /// These actions trigger the middleware between the UI and CLI
+    /// These actions trigger the middleware between the UI and CLI.
+    /// TODO: Mv all UI sets to PublisherWindow[Callbacks]
     public partial class PublisherWindow
     {
+        #region Init from PublisherWindow.CreateGUI
+        /// Gets list of identities from CLI
+        private async Task<List<SpacetimeIdentity>> onGetSetIdentities()
+        {
+            GetIdentitiesResult getIdentitiesResult = await SpacetimeDbCli.GetIdentitiesAsync();
+            return getIdentitiesResult.Identities;
+        }
+        #endregion // Init from PublisherWindow.CreateGUI
+        
         /// (1) Suggest module name, if empty
         /// (2) Reveal publisher group
         /// (3) Ensure spacetimeDB CLI is installed async
@@ -59,10 +70,14 @@ namespace SpacetimeDB.Editor
         /// - Set to the initial state as if no inputs were set.
         /// - This exists so we can show all ui elements simultaneously in the
         ///   ui builder for convenience.
+        /// - (!) If called from CreateGUI, after a couple frames,
+        ///       any persistence may override this.
         private void resetUi()
         {
             identitySelectedDropdown.style.display = DisplayStyle.None;
             identitySelectedDropdown.index = -1;
+            identityNicknameTxt.value = "";
+            identityStatusLabel.style.display = DisplayStyle.None;
             
             publishFoldout.style.display = DisplayStyle.None;
             publishGroupBox.style.display = DisplayStyle.None;
@@ -112,20 +127,6 @@ namespace SpacetimeDB.Editor
                 StringStyle.Success, 
                 "Ready");
         }
-        
-        private async Task addNewIdentity(string nickname, string email)
-        {
-            // Disable btn + show installing status
-            identityAddBtn.SetEnabled(false);
-            identityAddBtn.text = GetStyledStr(StringStyle.Action, $"Adding ${nickname}...");
-            
-            // Add identity
-            await Task.Delay(TimeSpan.FromSeconds(1));
-            
-            // Success: We still want to show the add button, but tweak it.
-            // It'll hide next time we publish
-            identityAddBtn.text = GetStyledStr(StringStyle.Success, "Added");
-        }
                                     
         /// Init -> prereqs => publish => done
         /// High-level event chain handler.
@@ -174,12 +175,12 @@ namespace SpacetimeDB.Editor
                 StringStyle.Action, 
                 "Publishing Module to SpacetimeDB");
 
-            PublishConfig publishConfig = new(publishModuleNameTxt.value, publishModulePathTxt.value);
+            PublishRequest publishRequest = new(publishModuleNameTxt.value, publishModulePathTxt.value);
             
             PublishServerModuleResult publishResult;
             try
             {
-                publishResult = await SpacetimeDbCli.PublishServerModuleAsync(publishConfig);
+                publishResult = await SpacetimeDbCli.PublishServerModuleAsync(publishRequest);
             }
             catch (Exception e)
             {
@@ -341,6 +342,40 @@ namespace SpacetimeDB.Editor
             // It'll hide next time we publish
             installWasmOptBtn.text = GetStyledStr(StringStyle.Success, "Installed");
             publishResultIsOptimizedBuildToggle.value = true;
+        }
+        
+        private async Task addNewIdentity(string nickname, string email)
+        {
+            // UI: Disable btn + show installing status to id label
+            identityAddBtn.SetEnabled(false);
+            identityStatusLabel.text = GetStyledStr(StringStyle.Action, $"Adding {nickname}...");
+            identityStatusLabel.style.display = DisplayStyle.Flex;
+            
+            // Add identity
+            NewIdentityRequest newIdentityRequest = new(nickname, email);
+            SpacetimeCliResult cliResult = await SpacetimeDbCli.AddNewIdentityAsync(newIdentityRequest);
+            onAddNewIdentityDone(nickname, cliResult);
+        }
+
+        private void onAddNewIdentityDone(string nickname, SpacetimeCliResult cliResult)
+        {
+            // Common
+            identityAddBtn.SetEnabled(true);
+            
+            if (cliResult.HasCliErr)
+            {
+                // Fail
+                identityStatusLabel.text = GetStyledStr(
+                    StringStyle.Error, 
+                    $"<b>Failed to add `{nickname}`</b>: {cliResult.CliError}");
+                
+                identityStatusLabel.style.display = DisplayStyle.Flex;
+            }
+
+            // Success: Add to dropdown + show
+            // Don't worry about caching choices; we'll get the new choices via CLI each load
+            identityAddBtn.text = GetStyledStr(StringStyle.Success, $"Added `{nickname}`");
+            identitySelectedDropdown.choices.Add(nickname);
         }
     }
 }

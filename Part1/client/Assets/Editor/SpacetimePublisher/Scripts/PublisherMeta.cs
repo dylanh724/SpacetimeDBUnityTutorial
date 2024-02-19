@@ -13,6 +13,7 @@ namespace SpacetimeDB.Editor
         public const string TOP_BANNER_CLICK_LINK = "https://spacetimedb.com/docs/modules";
         public const string DOCS_URL = "https://spacetimedb.com/install";
         public const string PUBLISHER_DIR_PATH = "Assets/Editor/SpacetimePublisher";
+        public const string PUBLISHER_IDENTITY_CHOICES_EDITOR_KEY = "PublisherIdentityChoices";
         public static string PathToUxml => $"{PUBLISHER_DIR_PATH}/Publisher.uxml";
         public static string PathToUss => $"{PUBLISHER_DIR_PATH}/Publisher.uss";
         

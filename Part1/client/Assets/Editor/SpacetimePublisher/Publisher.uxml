@@ -7,10 +7,11 @@
         <ui:VisualElement name="spacer15" style="height: 15px;" />
         <ui:VisualElement name="body" style="flex-grow: 1; height: 94px;">
             <ui:Foldout text="&lt;b&gt;Identity&lt;/b&gt;" name="identityFoldout" view-data-key="IdentityFoldout" value="true" style="display: flex; -unity-font-style: normal;">
-                <ui:DropdownField label="Selected Identity" index="-1" choices="System.Collections.Generic.List`1[System.String]" name="identitySelectedDropdown" view-data-key="IdentitySelectedDropdown" tooltip="This will change between target server hosts" />
-                <ui:TextField picking-mode="Ignore" label="Nickname:" name="identityNicknameTxt" multiline="true" tooltip="Mapped to your DB Address for convenience" view-data-key="identityNicknameTxt" readonly="false" keyboard-type="ASCIICapable" />
-                <ui:TextField picking-mode="Ignore" label="Email:" name="identityEmailTxt" multiline="true" tooltip="You don&apos;t need to confirm this" view-data-key="identityEmailTxt" readonly="false" keyboard-type="EmailAddress" />
+                <ui:DropdownField label="Selected Identity" index="-1" choices="System.Collections.Generic.List`1[System.String]" name="identitySelectedDropdown" view-data-key="identitySelectedDropdown" tooltip="This will change between target server hosts" />
+                <ui:TextField picking-mode="Ignore" label="Nickname:" name="identityNicknameTxt" multiline="true" tooltip="Mapped to your DB Address for convenience" readonly="false" keyboard-type="ASCIICapable" />
+                <ui:TextField picking-mode="Ignore" label="Email:" name="identityEmailTxt" multiline="true" tooltip="You don&apos;t need to confirm this. Aliases(+) are ok." readonly="false" keyboard-type="EmailAddress" />
                 <ui:Button text="Add New Identity" parse-escape-sequences="true" display-tooltip-when-elided="true" name="identityAddBtn" tooltip="Create a new identity for the selected server" style="height: 25px; padding-bottom: 2px;" />
+                <ui:Label tabindex="-1" text="{identityStatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="identityStatusLabel" style="color: rgb(182, 192, 207); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
             </ui:Foldout>
             <ui:VisualElement name="spacer10" style="height: 10px;" />
             <ui:Foldout text="&lt;b&gt;Publish&lt;/b&gt;" name="publishFoldout" view-data-key="PublishConfigDropdown" value="true" style="display: flex; -unity-font-style: normal;">
@@ -23,14 +24,14 @@
                     <ui:Button text="Publish" parse-escape-sequences="true" display-tooltip-when-elided="true" name="publishBtn" tooltip="This will issue a `spacetime publish` using your module name+path" style="height: 50px; -unity-font-style: bold; font-size: 16px; display: flex;" />
                     <ui:ProgressBar value="5" title="Running CLI..." name="installProgressBar" tooltip="Allows for the `spacetime` CLI command" low-value="5" style="display: none;" />
                     <ui:ScrollView name="publishStatusScrollView" style="max-height: 200px;">
-                        <ui:Label tabindex="-1" text="{PublishStatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="publishStatusLabel" style="color: rgb(182, 192, 207); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
+                        <ui:Label tabindex="-1" text="{publishStatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="publishStatusLabel" style="color: rgb(182, 192, 207); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
                     </ui:ScrollView>
                 </ui:GroupBox>
             </ui:Foldout>
             <ui:VisualElement name="spacer5" style="height: 5px;" />
             <ui:Foldout text="&lt;b&gt;Published Info Cache&lt;/b&gt;" name="publishResultFoldout" view-data-key="PublishResultFoldout" value="true" style="display: flex; -unity-font-style: normal;">
-                <ui:TextField picking-mode="Ignore" label="Host:" value="{PublishResultHostTxt}" name="publishResultHostTxt" multiline="true" tooltip="host:ip" view-data-key="publishResultHostTxt" readonly="true" />
-                <ui:TextField picking-mode="Ignore" label="DB Address:" value="{PublishResultDbAddressTxt}" name="publishResultDbAddressTxt" multiline="true" tooltip="The DB Address mapped to your Server Module Name" view-data-key="publishResultDbAddressTxt" readonly="true" />
+                <ui:TextField picking-mode="Ignore" label="Host:" value="{publishResultHostTxt}" name="publishResultHostTxt" multiline="true" tooltip="host:ip" view-data-key="publishResultHostTxt" readonly="true" />
+                <ui:TextField picking-mode="Ignore" label="DB Address:" value="{publishResultDbAddressTxt}" name="publishResultDbAddressTxt" multiline="true" tooltip="The DB Address mapped to your Server Module Name" view-data-key="publishResultDbAddressTxt" readonly="true" />
                 <ui:VisualElement name="optimizedHorizontal" style="flex-grow: 1; flex-direction: row;">
                     <ui:Toggle label="Optimized Build:" name="publishResultIsOptimizedBuildToggle" view-data-key="publishResultIsOptimizedBuildToggle" tooltip="via `opt-wasm`" value="false" />
                     <ui:Button text="Install Package" parse-escape-sequences="true" display-tooltip-when-elided="true" name="installWasmOptBtn" tooltip="Set &amp; Forget: Globally install `wasm-opt` via npm." style="flex-grow: 1;" />

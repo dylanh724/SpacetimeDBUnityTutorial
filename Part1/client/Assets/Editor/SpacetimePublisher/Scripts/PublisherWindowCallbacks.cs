@@ -182,6 +182,7 @@ namespace SpacetimeDB.Editor
                 : DisplayStyle.Flex;
         }
 
+        /// AKA AddNewIdentityBtnClick
         private async void onIdentityAddBtnClickAsync()
         {
             try

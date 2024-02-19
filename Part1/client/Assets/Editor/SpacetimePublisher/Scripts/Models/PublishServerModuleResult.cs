@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using NUnit.Framework;
 using Unity.Plastic.Newtonsoft.Json;
 using UnityEngine;
 
@@ -10,28 +9,38 @@ namespace SpacetimeDB.Editor
     {
         #region Success
         /// The errors may have false-positive warnings; this is the true success checker
-        public readonly bool IsSuccessfulPublish;
+        public bool IsSuccessfulPublish { get; private set; }
         
         /// `wasm-opt` !found, so the module continued with an "unoptimised" version
-        public readonly bool CouldNotFindWasmOpt;
+        public bool CouldNotFindWasmOpt { get; private set; }
 
         /// Eg: "http://localhost:3000" || "https://testnet.spacetimedb.com"
-        public readonly string UploadedToHost;
+        public string UploadedToHost { get; private set; }
 
         /// Eg: "http://localhost"
-        public readonly string UploadedToUrl;
+        public string UploadedToUrl { get; private set; }
 
         /// Eg: 3000
-        public readonly ushort UploadedToPort;
+        public ushort UploadedToPort { get; private set; }
 
         /// Not to be confused with UploadedToHost
-        public readonly string DatabaseAddressHash;
+        public string DatabaseAddressHash { get; private set; }
 
-        public readonly bool IsLocal;
+        public bool IsLocal { get; private set; }
         #endregion // Success
 
 
         #region Errs
+        /// Parsed from known MSBUILD publishing error codes
+        /// (!) We currently only catch invalid project dir errors
+        public PublishErrorCode PublishErrCode { get; private set; }
+        
+        /// You may pass this raw string to the UI, if a known err is caught
+        public string StyledFriendlyErrorMessage { get; private set; }
+        
+        /// (!) These may be lesser warnings. For a true indicator of success, check `IsSuccessfulPublish` 
+        public bool HasPublishErr => PublishErrCode != PublishErrorCode.None;
+        
         public enum PublishErrorCode
         {
             None,
@@ -40,16 +49,6 @@ namespace SpacetimeDB.Editor
             DBUpdateRejected_PermissionDenied,
             UnknownError,
         }
-
-        /// Parsed from known MSBUILD publishing error codes
-        /// (!) We currently only catch invalid project dir errors
-        public readonly PublishErrorCode PublishErrCode;
-        
-        /// (!) These may be lesser warnings. For a true indicator of success, check `IsSuccessfulPublish` 
-        public bool HasPublishErr => PublishErrCode != PublishErrorCode.None;
-
-        /// You may pass this raw string to the UI, if a known err is caught
-        public readonly string StyledFriendlyErrorMessage;
         #endregion // Errs
 
 
@@ -61,65 +60,31 @@ namespace SpacetimeDB.Editor
             if (cliResult.HasCliErr || hasOutputErr)
             {
                 if (cliResult.HasCliErr)
-                {
-                    // CliError >>
-                    bool hasErrWorkingProjDirNotFound =
-                        cliResult.HasCliErr &&
-                        cliResult.CliOutput.Contains("error MSB1003"); // Working proj dir !found
-
-                    if (hasErrWorkingProjDirNotFound)
-                    {
-                        this.PublishErrCode = PublishErrorCode.MSB1003_InvalidProjectDir;
-                        this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
-                            PublisherMeta.StringStyle.Error,
-                            "<b>Failed:</b> Invalid server module dir");
-                    }
-                    
-                    // "Error: Database update rejected: Update database `{dbAddressHash}`: Permission denied"
-                    bool hasErrPermissionDenied = cliResult.CliError.Contains("Permission denied");
-                    if (hasErrPermissionDenied)
-                    {
-                        this.PublishErrCode = PublishErrorCode.DBUpdateRejected_PermissionDenied;
-                        this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
-                            PublisherMeta.StringStyle.Error,
-                            "<b>Failed:</b> Database update rejected\n" +
-                            "Permission denied (Invalid Identity?)");
-                    }
-                }
+                    onCliError(cliResult);
             
                 // CLI resulted success, but what about an internal error specific to publisher?
                 if (cliResult.CliError.Contains("Error:"))
-                {
-                    bool isServerNotRunning = cliResult.CliError.Contains("os error 10061");
-
-                    if (isServerNotRunning)
-                    {
-                        this.PublishErrCode = PublishErrorCode.OS10061_ServerHostNotRunning;
-                        this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
-                            PublisherMeta.StringStyle.Error,
-                            "<b>Failed:</b> Server host not running:\n" +
-                            "(1) Open terminal\n" +
-                            "(2) `spacetime start`\n" +
-                            "(3) Try again");
-                    }
-                    else
-                        this.PublishErrCode = PublishErrorCode.UnknownError;
-                }
+                    onPublisherError(cliResult);
 
                 // Check for false-positive errs (that are more-so warnings)
                 this.IsSuccessfulPublish = CliOutput.Contains("Updated database with domain");
-                
                 if (!IsSuccessfulPublish)
                     return;
             }
- 
-            // ---------------------
-            // Success >>
+
+            onSuccess();
+        }
+
+        private void onSuccess()
+        {
             this.CouldNotFindWasmOpt = CliOutput.Contains("Could not find wasm-opt");
             this.IsLocal = CliOutput.Contains("Uploading to local =>");
             this.DatabaseAddressHash = getDatabaseAddressHash();
+            setUploadedToInfo();
+        }
 
-            // Use regex to find the host url from CliOutput.
+        private void setUploadedToInfo()
+        {// Use regex to find the host url from CliOutput.
             // Eg, from "Uploading to local => http://127.0.0.1:3000"
             // Eg, from "Uploading to testnet => https://testnet.spacetimedb.com"
             (string url, string port)? urlPortTuple = getHostUrlFromCliOutput();
@@ -131,16 +96,62 @@ namespace SpacetimeDB.Editor
             
             // There may not be a port
             if (ushort.TryParse(urlPortTuple.Value.port, out ushort parsedPort))
-                this.UploadedToPort = parsedPort; // Parsing successful, update with the parsed value
-            else
             {
-                // No port - assume based on http(s) prefix
-                this.UploadedToPort = UploadedToHost.StartsWith("https") 
-                    ? (ushort)443 // ssl
-                    : (ushort)80; // !ssl
-                
-                // We also need to remove the `:` from the url host
-                this.UploadedToHost = UploadedToHost.Replace(":", "");
+                this.UploadedToPort = parsedPort; // Parsing successful, update with the parsed value
+                return;
+            }
+            
+            // No port - assume based on http(s) prefix
+            this.UploadedToPort = UploadedToHost.StartsWith("https") 
+                ? (ushort)443 // ssl
+                : (ushort)80; // !ssl
+            
+            // We also need to remove the `:` from the url host
+            this.UploadedToHost = UploadedToHost.Replace(":", "");
+        }
+
+        private void onPublisherError(SpacetimeCliResult cliResult)
+        {
+            bool isServerNotRunning = cliResult.CliError.Contains("os error 10061");
+
+            if (isServerNotRunning)
+            {
+                this.PublishErrCode = PublishErrorCode.OS10061_ServerHostNotRunning;
+                this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
+                    PublisherMeta.StringStyle.Error,
+                    "<b>Failed:</b> Server host not running:\n" +
+                    "(1) Open terminal\n" +
+                    "(2) `spacetime start`\n" +
+                    "(3) Try again");
+            }
+            else
+                this.PublishErrCode = PublishErrorCode.UnknownError;
+        }
+
+        private void onCliError(SpacetimeCliResult cliResult)
+        {
+            // CliError >>
+            bool hasErrWorkingProjDirNotFound =
+                cliResult.HasCliErr &&
+                cliResult.CliOutput.Contains("error MSB1003"); // Working proj dir !found
+
+            if (hasErrWorkingProjDirNotFound)
+            {
+                this.PublishErrCode = PublishErrorCode.MSB1003_InvalidProjectDir;
+                this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
+                    PublisherMeta.StringStyle.Error,
+                    "<b>Failed:</b> Invalid server module dir");
+            }
+                    
+            // "Error: Database update rejected: Update database `{dbAddressHash}`: Permission denied"
+            bool hasErrPermissionDenied = cliResult.CliError.Contains("Permission denied");
+            if (hasErrPermissionDenied)
+            {
+                this.PublishErrCode = PublishErrorCode.DBUpdateRejected_PermissionDenied;
+                this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
+                    PublisherMeta.StringStyle.Error,
+                    "<b>Failed:</b> Database update rejected\n" +
+                    "Permission denied (Invalid Identity?)");
             }
         }
 

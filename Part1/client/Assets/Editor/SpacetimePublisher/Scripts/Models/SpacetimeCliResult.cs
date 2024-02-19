@@ -3,12 +3,12 @@ namespace SpacetimeDB.Editor
     /// Result from SpacetimeDbCli.runCliCommandAsync
     public class SpacetimeCliResult
     {
-        public readonly string CliOutput;
+        public string CliOutput { get; private set; }
         
         /// This is the official error thrown by the CLI; it may not necessarily
         /// be as helpful as a friendlier error message likely within CliOutput.
         /// (!) Sometimes, this may not even be a "real" error. Double check output!
-        public readonly string CliError;
+        public string CliError { get; private set; }
         
         /// (!) While this may be a CLI error, it could be a false positive
         /// for what you really want to do. For example, `spacetime publish`
