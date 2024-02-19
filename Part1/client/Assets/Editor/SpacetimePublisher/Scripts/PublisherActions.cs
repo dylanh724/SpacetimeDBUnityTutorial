@@ -41,7 +41,7 @@ namespace SpacetimeDB.Editor
             
             identitySelectedDropdown.choices.Clear();
             identitySelectedDropdown.style.display = DisplayStyle.None;
-            identityNewGroupbox.style.display = DisplayStyle.Flex;
+            identityNewGroupBox.style.display = DisplayStyle.Flex;
         }
 
         /// Set the identity dropdown. TODO: Do we have any reason to cache this list?
@@ -71,7 +71,7 @@ namespace SpacetimeDB.Editor
             
             // Hide UI
             identityStatusLabel.style.display = DisplayStyle.None;
-            identityNewGroupbox.style.display = DisplayStyle.None;
+            identityNewGroupBox.style.display = DisplayStyle.None;
             
             // Show the next section
             publishFoldout.style.display = DisplayStyle.Flex;
@@ -136,10 +136,14 @@ namespace SpacetimeDB.Editor
         ///       any persistence may override this.
         private void resetUi()
         {
+            installCliGroupBox.style.display = DisplayStyle.None;
+            installCliProgressBar.style.display = DisplayStyle.None;
+            installCliStatusLabel.style.display = DisplayStyle.None;
+            
             // identitySelectedDropdown.style.display = DisplayStyle.None;
             // identitySelectedDropdown.index = -1;
             identityAddNewShowUiBtn.style.display = DisplayStyle.None;
-            identityNewGroupbox.style.display = DisplayStyle.None;
+            identityNewGroupBox.style.display = DisplayStyle.None;
             identitySelectedDropdown.choices.Clear(); 
             identitySelectedDropdown.index = -1;
             identitySelectedDropdown.value = GetStyledStr(StringStyle.Action, "Searching..."); 
@@ -148,10 +152,11 @@ namespace SpacetimeDB.Editor
              
             publishFoldout.style.display = DisplayStyle.None;
             publishGroupBox.style.display = DisplayStyle.None;
-            installProgressBar.style.display = DisplayStyle.None;
+            publishInstallProgressBar.style.display = DisplayStyle.None;
             publishStatusLabel.style.display = DisplayStyle.None;
             publishResultFoldout.style.display = DisplayStyle.None;
             publishResultFoldout.value = false;
+            publishInstallProgressBar.style.display = DisplayStyle.None;
             
             // Hacky readonly Toggle feat workaround
             publishResultIsOptimizedBuildToggle.SetEnabled(false);
@@ -167,43 +172,16 @@ namespace SpacetimeDB.Editor
             publishBtn.SetEnabled(false);
             publishStatusLabel.style.display = DisplayStyle.Flex;
             publishGroupBox.style.display = DisplayStyle.Flex;
-            
-            // Check/install for spacetime cli tool async =>
-            try
-            {
-                await ensureSpacetimeCliInstalledAsync();
-                setReadyStatus();
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"CliError: {e}");
-                throw;
-            }
-            finally
-            {
-                // Reenable, no matter what, so we can try again if we want to
-                publishGroupBox.SetEnabled(true);
-            }
+            setPublishReadyStatus();
         }
 
         /// Sets status label to "Ready" and enables Publisher btn
-        private void setReadyStatus()
+        private void setPublishReadyStatus()
         {
             publishBtn.SetEnabled(true);
             publishStatusLabel.text = GetStyledStr(
                 StringStyle.Success, 
                 "Ready");
-        }
-                                    
-        /// Init -> prereqs => publish => done
-        /// High-level event chain handler.
-        private async Task startPublishChain()
-        {
-            setPublishStartUi();
-            await ensureSpacetimeCliInstalledAsync(); // Sanity check
-            
-            PublishServerModuleResult publishResult = await publish();
-            onPublishDone(publishResult);
         }
 
         private void onPublishDone(PublishServerModuleResult publishResult)
@@ -226,13 +204,14 @@ namespace SpacetimeDB.Editor
             }
             
             // Success - reset UI back to normal
-            setReadyStatus();
+            setPublishReadyStatus();
             setPublishResultGroupUi(publishResult);
         }
 
         private async Task<PublishServerModuleResult> publish()
         {
             _ = startProgressBarAsync(
+                publishInstallProgressBar,
                 barTitle: "Publishing...",
                 initVal: 1,
                 valIncreasePerSec: 1,
@@ -256,7 +235,7 @@ namespace SpacetimeDB.Editor
             }
             finally
             {
-                installProgressBar.style.display = DisplayStyle.None;
+                publishInstallProgressBar.style.display = DisplayStyle.None;
             }
 
             return publishResult;
@@ -279,29 +258,38 @@ namespace SpacetimeDB.Editor
         /// Show progress bar, clamped to 1~100, updating every 1s
         /// Stops when reached 100, or if style display is hidden
         private async Task startProgressBarAsync(
+            ProgressBar progressBar,
             string barTitle = "Running CLI...",
             int initVal = 5, 
             int valIncreasePerSec = 5,
             bool autoHideOnComplete = true)
         {
-            installProgressBar.title = barTitle;
-            installProgressBar.value = Mathf.Clamp(initVal, 1, 100);
-            installProgressBar.style.display = DisplayStyle.Flex;
+            progressBar.title = barTitle;
+            progressBar.value = Mathf.Clamp(initVal, 1, 100);
+            progressBar.style.display = DisplayStyle.Flex;
             
-            while (installProgressBar.value < 100 && 
-                   installProgressBar.style.display == DisplayStyle.Flex)
+            while (progressBar.value < 100 && 
+                   progressBar.style.display == DisplayStyle.Flex)
             {
                 await Task.Delay(TimeSpan.FromSeconds(1));
-                installProgressBar.value += valIncreasePerSec;
+                progressBar.value += valIncreasePerSec;
             }
             
             if (autoHideOnComplete)
-                installProgressBar.style.display = DisplayStyle.None;
+                progressBar.style.display = DisplayStyle.None;
         }
         
         /// Check for install => Install if !found -> Throw if err
         private async Task ensureSpacetimeCliInstalledAsync()
         {
+            // UI
+            startProgressBarAsync(
+                installCliProgressBar, 
+                barTitle: "Checking for SpacetimeDB CLI...", 
+                autoHideOnComplete: false);
+            
+            installCliGroupBox.style.display = DisplayStyle.Flex;
+            
             // Check if Spacetime CLI is installed => install, if !found
             bool isSpacetimeCliInstalled;
 
@@ -312,14 +300,22 @@ namespace SpacetimeDB.Editor
             catch (Exception e)
             {
                 updateStatus(StringStyle.Error, e.Message);
+                installCliProgressBar.style.display = DisplayStyle.None;
                 throw;
             }
 
             if (isSpacetimeCliInstalled)
+            {
+                onSpacetimeCliInstallSuccess();
                 return;
+            }
             
             // Command !found: Update status => Install now
-            _ = startProgressBarAsync(barTitle: "Installing...", autoHideOnComplete: true);
+            _ = startProgressBarAsync(
+                publishInstallProgressBar, 
+                barTitle: "Installing...", 
+                autoHideOnComplete: true);
+            
             publishStatusLabel.text = GetStyledStr(
                 StringStyle.Action, 
                 "Installing SpacetimeDB CLI");
@@ -336,15 +332,22 @@ namespace SpacetimeDB.Editor
             }
             finally
             {
-                installProgressBar.style.display = DisplayStyle.None;
+                publishInstallProgressBar.style.display = DisplayStyle.None;
             }
             
             bool hasSpacetimeCli = !installResult.HasCliErr;
             if (hasSpacetimeCli)
-                return;
+                return; // Success
             
             // Critical error: Spacetime CLI !installed and failed install attempt
             updateStatus(StringStyle.Error, "Failed to install Spacetime CLI: See logs");
+        }
+
+        /// Hide CLI group
+        private void onSpacetimeCliInstallSuccess()
+        {
+            installCliProgressBar.style.display = DisplayStyle.None;
+            installCliGroupBox.style.display = DisplayStyle.None;
         }
 
         /// Show a styled friendly string to UI. Errs will enable publish btn.

@@ -153,17 +153,17 @@ namespace SpacetimeDB.Editor
         /// Toggles the "new identity" group UI
         private void onIdentityAddNewShowUiBtnClick()
         {
-            bool isHidden = identityNewGroupbox.style.display == DisplayStyle.None;
+            bool isHidden = identityNewGroupBox.style.display == DisplayStyle.None;
             if (isHidden)
             {
                 // Show
-                identityNewGroupbox.style.display = DisplayStyle.Flex;
+                identityNewGroupBox.style.display = DisplayStyle.Flex;
                 identityAddNewShowUiBtn.text = GetStyledStr(StringStyle.Success, "-"); // Show opposite, styled
             }
             else
             {
                 // Hide
-                identityNewGroupbox.style.display = DisplayStyle.None;
+                identityNewGroupBox.style.display = DisplayStyle.None;
                 identityAddNewShowUiBtn.text = "+"; // Show opposite
             }
         }
@@ -221,7 +221,9 @@ namespace SpacetimeDB.Editor
         {
             try
             {
-                await startPublishChain();
+                setPublishStartUi();
+                PublishServerModuleResult publishResult = await publish();
+                onPublishDone(publishResult);
             }
             catch (Exception e)
             {

@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -17,11 +18,15 @@ namespace SpacetimeDB.Editor
 
         #region UI Visual Elements
         private Button topBannerBtn;
+        
+        private GroupBox installCliGroupBox;
+        private ProgressBar installCliProgressBar;
+        private Label installCliStatusLabel;
 
         private Foldout identityFoldout;
         private DropdownField identitySelectedDropdown;
         private Button identityAddNewShowUiBtn;
-        private GroupBox identityNewGroupbox;
+        private GroupBox identityNewGroupBox;
         private TextField identityNicknameTxt;
         private TextField identityEmailTxt;
         private Button identityAddBtn;
@@ -35,7 +40,7 @@ namespace SpacetimeDB.Editor
         private TextField publishModuleNameTxt; // Always has a val (fallback system)
 
         private GroupBox publishGroupBox;
-        private ProgressBar installProgressBar;
+        private ProgressBar publishInstallProgressBar;
         private Label publishStatusLabel;
         private Button publishBtn;
         
@@ -69,8 +74,13 @@ namespace SpacetimeDB.Editor
             // Fields set from here
             resetUi();
             setOnActionEvents(); // @ PublisherWindowCallbacks.cs
-            
-            // Load other vals dynamically (from CLI)
+            await loadDynamicUiInitSequence();
+        }
+
+        /// Installs CLI tool, shows identity dropdown, gets identities
+        private async Task loadDynamicUiInitSequence()
+        {
+            await ensureSpacetimeCliInstalledAsync();
             await getIdentitiesSetDropdown(); // @ PublisherActions.cs => result will reveal more UI
         }
 
@@ -88,11 +98,15 @@ namespace SpacetimeDB.Editor
         private void setUiElements()
         {
             topBannerBtn = rootVisualElement.Q<Button>(nameof(topBannerBtn));
+
+            installCliGroupBox = rootVisualElement.Q<GroupBox>(nameof(installCliGroupBox));
+            installCliProgressBar = rootVisualElement.Q<ProgressBar>(nameof(installCliProgressBar));
+            installCliStatusLabel = rootVisualElement.Q<Label>(nameof(installCliStatusLabel));
             
             identityFoldout = rootVisualElement.Q<Foldout>(nameof(identityFoldout));
             identitySelectedDropdown = rootVisualElement.Q<DropdownField>(nameof(identitySelectedDropdown));
             identityAddNewShowUiBtn = rootVisualElement.Q<Button>(nameof(identityAddNewShowUiBtn));
-            identityNewGroupbox = rootVisualElement.Q<GroupBox>(nameof(identityNewGroupbox));
+            identityNewGroupBox = rootVisualElement.Q<GroupBox>(nameof(identityNewGroupBox));
             identityNicknameTxt = rootVisualElement.Q<TextField>(nameof(identityNicknameTxt));
             identityEmailTxt = rootVisualElement.Q<TextField>(nameof(identityEmailTxt));
             identityAddBtn = rootVisualElement.Q<Button>(nameof(identityAddBtn));
@@ -105,7 +119,7 @@ namespace SpacetimeDB.Editor
             publishModulePathTxt = rootVisualElement.Q<TextField>(nameof(publishModulePathTxt));
 
             publishGroupBox = rootVisualElement.Q<GroupBox>(nameof(publishGroupBox));
-            installProgressBar = rootVisualElement.Q<ProgressBar>(nameof(installProgressBar));
+            publishInstallProgressBar = rootVisualElement.Q<ProgressBar>(nameof(publishInstallProgressBar));
             publishStatusLabel = rootVisualElement.Q<Label>(nameof(publishStatusLabel));
             publishBtn = rootVisualElement.Q<Button>(nameof(publishBtn));
             
@@ -122,10 +136,14 @@ namespace SpacetimeDB.Editor
         {
             Assert.IsNotNull(topBannerBtn, $"Expected `#{nameof(topBannerBtn)}`");
             
+            Assert.IsNotNull(installCliGroupBox, $"Expected `#{nameof(installCliGroupBox)}`");
+            Assert.IsNotNull(installCliProgressBar, $"Expected `#{nameof(installCliProgressBar)}`");
+            Assert.IsNotNull(installCliStatusLabel, $"Expected `#{nameof(installCliStatusLabel)}`");
+            
             Assert.IsNotNull(identityFoldout, $"Expected `#{nameof(identityFoldout)}`");
             Assert.IsNotNull(identitySelectedDropdown, $"Expected `#{nameof(identitySelectedDropdown)}`");
             Assert.IsNotNull(identityAddNewShowUiBtn, $"Expected `#{nameof(identityAddNewShowUiBtn)}`");
-            Assert.IsNotNull(identityNewGroupbox, $"Expected `#{nameof(identityNewGroupbox)}`");
+            Assert.IsNotNull(identityNewGroupBox, $"Expected `#{nameof(identityNewGroupBox)}`");
             Assert.IsNotNull(identityNicknameTxt, $"Expected `#{nameof(identityNicknameTxt)}`");
             Assert.IsNotNull(identityEmailTxt, $"Expected `#{nameof(identityEmailTxt)}`");
             Assert.IsNotNull(identityAddBtn, $"Expected `#{nameof(identityAddBtn)}`");
@@ -140,7 +158,7 @@ namespace SpacetimeDB.Editor
             Assert.IsNotNull(publishModuleNameTxt, $"Expected `#{nameof(publishModuleNameTxt)}`");
             
             Assert.IsNotNull(publishGroupBox, $"Expected `#{nameof(publishGroupBox)}`");
-            Assert.IsNotNull(installProgressBar, $"Expected `#{nameof(installProgressBar)}`");
+            Assert.IsNotNull(publishInstallProgressBar, $"Expected `#{nameof(publishInstallProgressBar)}`");
             Assert.IsNotNull(publishStatusLabel, $"Expected `#{nameof(publishStatusLabel)}`");
             Assert.IsNotNull(publishBtn, $"Expected `#{nameof(publishBtn)}`");
             
