@@ -222,9 +222,12 @@ namespace SpacetimeDB.Editor
             return publishResult;
         }
         
+        /// Uses the `spacetime identity list` CLI command
         public static async Task<GetIdentitiesResult> GetIdentitiesAsync()
         {
-            return null;
+            SpacetimeCliResult cliResult = await runCliCommandAsync("spacetime identity list");
+            GetIdentitiesResult getIdentitiesResult = new(cliResult); 
+            throw new NotImplementedException("TODO");
         }
         #endregion // High Level CLI Actions
     }

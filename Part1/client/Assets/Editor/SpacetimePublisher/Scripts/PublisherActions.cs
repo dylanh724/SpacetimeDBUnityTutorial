@@ -13,11 +13,21 @@ namespace SpacetimeDB.Editor
     public partial class PublisherWindow
     {
         #region Init from PublisherWindow.CreateGUI
-        /// Gets list of identities from CLI
-        private async Task<List<SpacetimeIdentity>> onGetSetIdentities()
+        /// Gets list of identity nicknames from CLI
+        private async Task<List<string>> onGetSetIdentities()
         {
-            GetIdentitiesResult getIdentitiesResult = await SpacetimeDbCli.GetIdentitiesAsync();
-            return getIdentitiesResult.Identities;
+            GetIdentitiesResult getIdentitiesResult;
+            try
+            {
+                getIdentitiesResult = await SpacetimeDbCli.GetIdentitiesAsync();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
+            
+            return getIdentitiesResult.IdentityNicknames;
         }
         #endregion // Init from PublisherWindow.CreateGUI
         
