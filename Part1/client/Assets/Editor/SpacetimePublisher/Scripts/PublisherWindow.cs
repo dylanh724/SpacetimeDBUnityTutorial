@@ -22,8 +22,9 @@ namespace SpacetimeDB.Editor
         private DropdownField identitySelectedDropdown;
         private TextField identityNicknameTxt;
         private TextField identityEmailTxt;
+        private Button identityAddBtn;
 
-        private DropdownField publishDropdown;
+        private Foldout publishFoldout;
         private GroupBox publishPathGroupBox;
         private Button publishPathSetDirectoryBtn; // "Browse"
         private TextField publishModulePathTxt;
@@ -86,8 +87,9 @@ namespace SpacetimeDB.Editor
             identitySelectedDropdown = rootVisualElement.Q<DropdownField>(nameof(identitySelectedDropdown));
             identityNicknameTxt = rootVisualElement.Q<TextField>(nameof(identityNicknameTxt));
             identityEmailTxt = rootVisualElement.Q<TextField>(nameof(identityEmailTxt));
+            identityAddBtn = rootVisualElement.Q<Button>(nameof(identityAddBtn));
             
-            publishDropdown = rootVisualElement.Q<DropdownField>(nameof(publishDropdown));
+            publishFoldout = rootVisualElement.Q<Foldout>(nameof(publishFoldout));
             publishModuleNameTxt = rootVisualElement.Q<TextField>(nameof(publishModuleNameTxt));
             publishPathGroupBox = rootVisualElement.Q<GroupBox>(nameof(publishPathGroupBox));
             publishPathSetDirectoryBtn = rootVisualElement.Q<Button>(nameof(publishPathSetDirectoryBtn));
@@ -115,7 +117,10 @@ namespace SpacetimeDB.Editor
             Assert.IsNotNull(identitySelectedDropdown, $"Expected `#{nameof(identitySelectedDropdown)}`");
             Assert.IsNotNull(identityNicknameTxt, $"Expected `#{nameof(identityNicknameTxt)}`");
             Assert.IsNotNull(identityEmailTxt, $"Expected `#{nameof(identityEmailTxt)}`");
+            Assert.IsNotNull(identityAddBtn, $"Expected `#{nameof(identityAddBtn)}`");
             
+            Assert.IsNotNull(publishFoldout, $"Expected `#{nameof(publishFoldout)}`");
+            Assert.IsNotNull(publishModuleNameTxt, $"Expected `#{nameof(publishModuleNameTxt)}`");
             Assert.IsNotNull(publishPathGroupBox, $"Expected `#{nameof(publishPathGroupBox)}`");
             Assert.IsNotNull(publishPathSetDirectoryBtn, $"Expected `#{nameof(publishPathSetDirectoryBtn)}`");
             Assert.IsNotNull(publishModulePathTxt, $"Expected `#{nameof(publishModulePathTxt)}`");

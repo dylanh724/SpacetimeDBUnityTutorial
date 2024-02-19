@@ -61,6 +61,10 @@ namespace SpacetimeDB.Editor
         ///   ui builder for convenience.
         private void resetUi()
         {
+            identitySelectedDropdown.style.display = DisplayStyle.None;
+            identitySelectedDropdown.index = -1;
+            
+            publishFoldout.style.display = DisplayStyle.None;
             publishGroupBox.style.display = DisplayStyle.None;
             installProgressBar.style.display = DisplayStyle.None;
             publishStatusLabel.style.display = DisplayStyle.None;
@@ -107,6 +111,20 @@ namespace SpacetimeDB.Editor
             publishStatusLabel.text = GetStyledStr(
                 StringStyle.Success, 
                 "Ready");
+        }
+        
+        private async Task addNewIdentity(string nickname, string email)
+        {
+            // Disable btn + show installing status
+            identityAddBtn.SetEnabled(false);
+            identityAddBtn.text = GetStyledStr(StringStyle.Action, $"Adding ${nickname}...");
+            
+            // Add identity
+            await Task.Delay(TimeSpan.FromSeconds(1));
+            
+            // Success: We still want to show the add button, but tweak it.
+            // It'll hide next time we publish
+            identityAddBtn.text = GetStyledStr(StringStyle.Success, "Added");
         }
                                     
         /// Init -> prereqs => publish => done
