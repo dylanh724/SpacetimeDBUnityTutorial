@@ -8,6 +8,7 @@ using static SpacetimeDB.Editor.PublisherMeta;
 namespace SpacetimeDB.Editor
 {
     /// Binds style and click events to the Spacetime Publisher Window
+    /// Note the dynamic init sequence logic @ loadDynamicUiInitSequence()
     public partial class PublisherWindow : EditorWindow
     {
         /// <summary>
@@ -24,7 +25,7 @@ namespace SpacetimeDB.Editor
         private Label installCliStatusLabel;
 
         private Foldout identityFoldout;
-        private DropdownField identitySelectedDropdown;
+        private DropdownField identitySelectedDropdown; // Don't set ViewDataKey; we'll set the default set in CLI
         private Button identityAddNewShowUiBtn;
         private GroupBox identityNewGroupBox;
         private TextField identityNicknameTxt;
@@ -73,7 +74,7 @@ namespace SpacetimeDB.Editor
 
             // Fields set from here
             resetUi();
-            setOnActionEvents(); // @ PublisherWindowCallbacks.cs
+            setOnActionEvents(); // @ PublisherWindowMiddleware.cs
             await loadDynamicUiInitSequence();
         }
 
@@ -81,7 +82,17 @@ namespace SpacetimeDB.Editor
         private async Task loadDynamicUiInitSequence()
         {
             await ensureSpacetimeCliInstalledAsync();
-            await getIdentitiesSetDropdown(); // @ PublisherActions.cs => result will reveal more UI
+            GetIdentitiesResult idsResult =  await getIdentitiesSetDropdown(); // @ PublisherWindowActions.cs => result will reveal more UI
+            
+            // We want to ensure we have a default identity. If we have some, but no default, set [0]
+            if (!idsResult.HasIdentitiesButNoDefault)
+                return;
+            
+            // We need a default identity set
+            string nickname = idsResult.Identities[0].Nickname; 
+            Debug.Log($"Warning: Found identities, but no default. Setting '{nickname}' default...");
+            await setDefaultIdentityAsync(nickname);
+
         }
 
         private void initVisualTreeStyles()

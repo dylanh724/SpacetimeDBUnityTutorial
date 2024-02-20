@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using Google.Protobuf.WellKnownTypes;
 
 namespace SpacetimeDB.Editor
 {
@@ -9,6 +10,8 @@ namespace SpacetimeDB.Editor
     {
         public List<SpacetimeIdentity> Identities { get; private set; }
         public bool HasIdentity => Identities?.Count > 0;
+        public bool HasIdentitiesButNoDefault => HasIdentity && 
+            Identities.Exists(id => id.IsDefault);
         
         
         public GetIdentitiesResult(SpacetimeCliResult cliResult)

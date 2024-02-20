@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
@@ -7,19 +8,21 @@ using static SpacetimeDB.Editor.PublisherMeta;
 
 namespace SpacetimeDB.Editor
 {
+    /// While `PublisherWindowActions` is for indirect UI interaction,
     /// Visual Element callbacks directly triggered from the UI via a user,
-    /// subscribed to @ PublisherWindow.setOnActionEvents.
+    /// subscribed to @ PublisherWindowInit.setOnActionEvents.
     /// OnButtonClick, FocusOut, OnChanged, etc.
-    /// Set @ setOnActionEvents(), unset at unsetActionEvents()
+    /// Set @ setOnActionEvents(), unset at unsetActionEvents().
+    /// These actions trigger the middleware between the UI and CLI.
     public partial class PublisherWindow
     {
-        #region Init from PublisherWindow.cs CreateGUI()
+        #region Init from PublisherWindowInit.cs CreateGUI()
         /// Curry sync Actions from UI => to async Tasks
         private void setOnActionEvents()
         {
             topBannerBtn.clicked += onTopBannerBtnClick;
             
-            identitySelectedDropdown.RegisterValueChangedCallback(onIdentitySelectedDropdownChanged); // Show if !null
+            identitySelectedDropdown.RegisterValueChangedCallback(onIdentitySelectedDropdownChangedAsync); // Show if !null
             identityAddNewShowUiBtn.clicked += onIdentityAddNewShowUiBtnClick; // Toggle reveals the "new identity" groupbox UI
             identityNicknameTxt.RegisterValueChangedCallback(onIdentityNicknameTxtChanged); // Replace spaces with dashes
             identityNicknameTxt.RegisterCallback<FocusOutEvent>(onIdentityNicknameFocusOut);
@@ -45,7 +48,7 @@ namespace SpacetimeDB.Editor
         {
             topBannerBtn.clicked -= onTopBannerBtnClick;
              
-            identitySelectedDropdown.RegisterValueChangedCallback(onIdentitySelectedDropdownChanged);
+            identitySelectedDropdown.RegisterValueChangedCallback(onIdentitySelectedDropdownChangedAsync);
             identityNicknameTxt.UnregisterValueChangedCallback(onIdentityNicknameTxtChanged);
             identityNicknameTxt.UnregisterCallback<FocusOutEvent>(onIdentityNicknameFocusOut);
             identityEmailTxt.UnregisterValueChangedCallback(onIdentityEmailTxtChanged);
@@ -66,7 +69,7 @@ namespace SpacetimeDB.Editor
 
         /// Cleanup when the UI is out-of-scope
         private void OnDisable() => unsetOnActionEvents();
-        #endregion // Init from PublisherWindow.cs CreateGUI()
+        #endregion // Init from PublisherWindowInit.cs CreateGUI()
         
         
         #region Direct UI Callbacks
@@ -96,14 +99,21 @@ namespace SpacetimeDB.Editor
         }
         
         /// This is hidden, by default, until a first newIdentity is added
-        private void onIdentitySelectedDropdownChanged(ChangeEvent<string> evt)
+        private async void onIdentitySelectedDropdownChangedAsync(ChangeEvent<string> evt)
         {
             bool selectedAnything = identitySelectedDropdown.index >= 0;
             bool isHidden = identitySelectedDropdown.style.display == DisplayStyle.None;
             
             // We have "some" newIdentity loaded by runtime code; show this dropdown
-            if (selectedAnything && isHidden)
-                identitySelectedDropdown.style.display = DisplayStyle.Flex;
+            if (selectedAnything)
+            {
+                if (isHidden)
+                    identitySelectedDropdown.style.display = DisplayStyle.Flex;
+                
+                // We changed from a known identity to another known one.
+                // We should change the CLI default.
+                await setDefaultIdentityAsync(evt.newValue);
+            }
         }
         
         /// Used for init only, for when the persistent ViewDataKey
@@ -133,6 +143,9 @@ namespace SpacetimeDB.Editor
             bool hasPathSet = !string.IsNullOrEmpty(publishModulePathTxt.value);
             if (hasPathSet)
             {
+                // Since we just changed the path, wipe old publish info cache
+                resetPublishedInfoCache();
+                
                 // Normalize, then reveal the next UI group
                 publishModulePathTxt.value = superTrim(publishModulePathTxt.value);
                 revealPublisherGroupUiAsync();
@@ -232,49 +245,5 @@ namespace SpacetimeDB.Editor
             }
         }
         #endregion // Direct UI Callbacks
-        
-        
-        #region Input Formatting Utils
-        private string replaceSpacesWithDashes(string str) =>
-            str?.Replace(" ", "-");
-        
-        /// Remove ALL whitespace from string
-        private string superTrim(string str) =>
-            str?.Replace(" ", "");
-
-        /// This checks for valid email chars for OnChange events
-        private bool tryFormatAsEmail(string input, out string formattedEmail)
-        {
-            formattedEmail = null;
-            if (string.IsNullOrWhiteSpace(input)) 
-                return false;
-    
-            // Simplified regex pattern to allow characters typically found in emails
-            const string emailCharPattern = @"^[a-zA-Z0-9@._+-]+$"; // Allowing "+" (email aliases)
-            if (!Regex.IsMatch(input, emailCharPattern))
-                return false;
-    
-            formattedEmail = input;
-            return true;
-        }
-
-        /// Useful for FocusOut events, checking the entire email for being valid.
-        /// At minimum: "a@b.c"
-        private bool checkIsValidEmail(string emailStr)
-        {
-            // No whitespace, contains "@" contains ".", allows "+" (alias), contains chars in between
-            string pattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
-            return Regex.IsMatch(emailStr, pattern);
-        }
-
-        /// Checked at OnFocusOut events to ensure both email+nickname are valid.
-        /// Toggle identityAddBtn enabled based validity of both.
-        private void checkIdentityReqsToggleIdentityBtn()
-        {
-            bool isEmailValid = checkIsValidEmail(identityEmailTxt.value);
-            bool isNicknameValid = !string.IsNullOrWhiteSpace(identityNicknameTxt.value);
-            identityAddBtn.SetEnabled(isEmailValid && isNicknameValid);
-        }
-        #endregion // Input Formatting Utils
     }
 }

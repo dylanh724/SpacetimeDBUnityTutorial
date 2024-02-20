@@ -1,6 +1,6 @@
 namespace SpacetimeDB.Editor
 {
-    /// Static metadata for PublisherWindow
+    /// Static metadata for PublisherWindowInit
     public static class PublisherMeta
     {
         public enum StringStyle

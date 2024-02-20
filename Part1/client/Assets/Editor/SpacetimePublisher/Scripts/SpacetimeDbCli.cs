@@ -7,11 +7,11 @@ using Debug = UnityEngine.Debug;
 
 namespace SpacetimeDB.Editor
 {
-    /// CLI action helper for PublisherWindow
+    /// CLI action helper for PublisherWindowInit
     public static class SpacetimeDbCli
     {
         #region Static Options
-        /// TODO: Possibly integrate this within the PublisherWindow?
+        /// TODO: Possibly integrate this within the PublisherWindowInit?
         private const CliLogLevel LOG_LEVEL = CliLogLevel.Info;
         
         public enum CliLogLevel
@@ -230,6 +230,14 @@ namespace SpacetimeDB.Editor
             SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
             return cliResult;
         }
+        
+        /// Uses the `spacetime identity set-default` CLI command
+        public static async Task<SpacetimeCliResult> SetDefaultIdentityAsync(string nicknameOrDbAddress)
+        {
+            string argSuffix = $"spacetime identity set-default {nicknameOrDbAddress}";
+            SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
+            return cliResult;
+        } 
         #endregion // High Level CLI Actions
     }
 }

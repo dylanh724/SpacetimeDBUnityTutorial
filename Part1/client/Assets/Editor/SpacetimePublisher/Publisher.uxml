@@ -18,7 +18,7 @@
                 <ui:GroupBox name="identityNewGroupBox" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;">
                     <ui:TextField picking-mode="Ignore" label="Nickname:" name="identityNicknameTxt" multiline="false" tooltip="Mapped to your DB Address for convenience" readonly="false" keyboard-type="ASCIICapable" />
                     <ui:TextField picking-mode="Ignore" label="Email:" name="identityEmailTxt" multiline="false" tooltip="You don&apos;t need to confirm this. Aliases(+) are ok." readonly="false" keyboard-type="EmailAddress" />
-                    <ui:Button text="Add New Identity" parse-escape-sequences="true" display-tooltip-when-elided="true" name="identityAddBtn" tooltip="Create a new newIdentity for the selected server" style="height: 25px; padding-bottom: 2px;" />
+                    <ui:Button text="Add New Identity" parse-escape-sequences="true" display-tooltip-when-elided="true" name="identityAddBtn" tooltip="Create a new, default newIdentity for the selected server" style="height: 25px; padding-bottom: 2px;" />
                     <ui:Label tabindex="-1" text="{identityStatusLabel}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="identityStatusLabel" style="color: rgb(182, 192, 207); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
                 </ui:GroupBox>
             </ui:Foldout>
