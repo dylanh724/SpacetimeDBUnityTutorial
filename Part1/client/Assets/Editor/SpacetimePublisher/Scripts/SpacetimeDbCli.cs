@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -7,11 +6,11 @@ using Debug = UnityEngine.Debug;
 
 namespace SpacetimeDB.Editor
 {
-    /// CLI action helper for PublisherWindowInit
+    /// CLI action helper for PublisherWindowInit.
+    /// Vanilla: Do the action -> return the result -> no more.
     public static class SpacetimeDbCli
     {
         #region Static Options
-        /// TODO: Possibly integrate this within the PublisherWindowInit?
         private const CliLogLevel LOG_LEVEL = CliLogLevel.Info;
         
         public enum CliLogLevel
@@ -116,7 +115,10 @@ namespace SpacetimeDB.Editor
 
             if (cliResult.HasCliErr)
             {
-                Debug.LogError($"CLI Output (with verbose errors): {prettyOutput}");
+                // There may be only a CliError and no CliOutput, depending on the type of error.
+                if (!string.IsNullOrEmpty(cliResult.CliOutput))
+                    Debug.LogError($"CLI Output (with verbose errors): {prettyOutput}");
+                
                 Debug.LogError($"CLI Error: {cliResult.CliError}\n" +
                     "(For +details, see output err above)");
             }
@@ -216,28 +218,54 @@ namespace SpacetimeDB.Editor
         }
         
         /// Uses the `spacetime identity list` CLI command
-        public static async Task<GetIdentitiesResult> GetSetIdentitiesAsync() 
+        public static async Task<GetIdentitiesResult> GetIdentitiesAsync() 
         {
             SpacetimeCliResult cliResult = await runCliCommandAsync("spacetime identity list");
             GetIdentitiesResult getIdentitiesResult = new(cliResult);
             return getIdentitiesResult;
         }
         
-        /// Uses the `spacetime identity new` CLI command, then set as default.
-        public static async Task<SpacetimeCliResult> AddNewIdentityAsync(NewNewIdentityRequest newNewIdentityRequest)
+        /// Uses the `spacetime identity list` CLI command
+        public static async Task<GetServersResult> GetServersAsync() 
         {
-            string argSuffix = $"spacetime identity new {newNewIdentityRequest} -d"; // -d == set as default
+            SpacetimeCliResult cliResult = await runCliCommandAsync("spacetime server list");
+            GetServersResult getServersResult = new(cliResult);
+            return getServersResult;
+        }
+        
+        /// Uses the `spacetime identity new` CLI command, then set as default.
+        public static async Task<SpacetimeCliResult> AddIdentityAsync(AddIdentityRequest addIdentityRequest)
+        {
+            string argSuffix = $"spacetime identity new {addIdentityRequest}"; // Forced set as default
             SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
             return cliResult;
         }
         
-        /// Uses the `spacetime identity set-default` CLI command
-        public static async Task<SpacetimeCliResult> SetDefaultIdentityAsync(string nicknameOrDbAddress)
+        /// Uses the `spacetime server add` CLI command, then set as default.
+        public static async Task<AddServerResult> AddServerAsync(AddServerRequest addServerRequest)
         {
-            string argSuffix = $"spacetime identity set-default {nicknameOrDbAddress}";
+            // Forced set as default. Forced --no-fingerprint for local.
+            string argSuffix = $"spacetime server add {addServerRequest}";
+            SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
+            AddServerResult addServerResult = new(cliResult);
+            return addServerResult;
+        }
+        
+        /// Uses the `spacetime identity set-default` CLI command
+        public static async Task<SpacetimeCliResult> SetDefaultIdentityAsync(string identityNicknameOrDbAddress)
+        {
+            string argSuffix = $"spacetime identity set-default {identityNicknameOrDbAddress}";
             SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
             return cliResult;
         } 
+
+        /// Uses the `spacetime server new` CLI command
+        public static async Task<SpacetimeCliResult> SetDefaultServerAsync(string serverNicknameOrHost)
+        {
+            string argSuffix = $"spacetime server set-default {serverNicknameOrHost}";
+            SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
+            return cliResult;
+        }
         #endregion // High Level CLI Actions
     }
 }

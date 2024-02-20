@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -21,6 +20,13 @@ namespace SpacetimeDB.Editor
         private void setOnActionEvents()
         {
             topBannerBtn.clicked += onTopBannerBtnClick;
+            
+            serverSelectedDropdown.RegisterValueChangedCallback(onServerSelectedDropdownChangedAsync); // Show if !null
+            serverAddNewShowUiBtn.clicked += onServerAddNewShowUiBtnClick; // Toggle reveals the "new server" groupbox UI
+            serverNicknameTxt.RegisterValueChangedCallback(onServerNicknameTxtChanged); // Replace spaces with dashes
+            serverNicknameTxt.RegisterCallback<FocusOutEvent>(onServerNicknameFocusOut);
+            serverHostTxt.RegisterCallback<FocusOutEvent>(onServerHostTxtFocusOut); // If valid, enable Add New Server btn
+            serverAddBtn.clicked += onServerAddBtnClickAsync; // Add new newServer
             
             identitySelectedDropdown.RegisterValueChangedCallback(onIdentitySelectedDropdownChangedAsync); // Show if !null
             identityAddNewShowUiBtn.clicked += onIdentityAddNewShowUiBtnClick; // Toggle reveals the "new identity" groupbox UI
@@ -47,6 +53,13 @@ namespace SpacetimeDB.Editor
         private void unsetOnActionEvents()
         {
             topBannerBtn.clicked -= onTopBannerBtnClick;
+            
+            serverSelectedDropdown.UnregisterValueChangedCallback(onServerSelectedDropdownChangedAsync); // Show if !null
+            serverAddNewShowUiBtn.clicked -= onServerAddNewShowUiBtnClick; // Toggle reveals the "new server" groupbox UI
+            serverNicknameTxt.UnregisterValueChangedCallback(onServerNicknameTxtChanged); // Replace spaces with dashes
+            serverNicknameTxt.UnregisterCallback<FocusOutEvent>(onServerNicknameFocusOut);
+            serverHostTxt.UnregisterCallback<FocusOutEvent>(onServerHostTxtFocusOut); // If valid, enable Add New Server btn
+            serverAddBtn.clicked -= onServerAddBtnClickAsync; // Add new newServer
              
             identitySelectedDropdown.RegisterValueChangedCallback(onIdentitySelectedDropdownChangedAsync);
             identityNicknameTxt.UnregisterValueChangedCallback(onIdentityNicknameTxtChanged);
@@ -81,6 +94,9 @@ namespace SpacetimeDB.Editor
         private void onIdentityNicknameTxtChanged(ChangeEvent<string> evt) =>
             identityNicknameTxt.SetValueWithoutNotify(replaceSpacesWithDashes(evt.newValue));
 
+        private void onServerNicknameTxtChanged(ChangeEvent<string> evt) =>
+            serverNicknameTxt.SetValueWithoutNotify(replaceSpacesWithDashes(evt.newValue));
+
         /// Change spaces to dashes
         private void onPublishModuleNameTxtChanged(ChangeEvent<string> evt) =>
             publishModuleNameTxt.SetValueWithoutNotify(replaceSpacesWithDashes(evt.newValue));
@@ -98,6 +114,27 @@ namespace SpacetimeDB.Editor
                 identityEmailTxt.SetValueWithoutNotify(evt.previousValue); // Revert non-email attempt
         }
         
+        private async void onServerSelectedDropdownChangedAsync(ChangeEvent<string> evt)
+        {
+            bool selectedAnything = serverSelectedDropdown.index >= 0;
+            
+            // The old val could've beeen a placeholder "<color=yellow>Searching ...</color>" val
+            bool oldValIsPlaceholderStr = selectedAnything && evt.previousValue.Contains("<"); 
+            bool isHidden = serverSelectedDropdown.style.display == DisplayStyle.None;
+            
+            // We have "some" server loaded by runtime code; show this dropdown
+            if (!selectedAnything || oldValIsPlaceholderStr)
+                return;
+            
+            if (isHidden)
+                serverSelectedDropdown.style.display = DisplayStyle.Flex;
+            
+            // We changed from a known server to another known one.
+            // We should change the CLI default.
+            string nickname = evt.newValue;
+            await SpacetimeDbCli.SetDefaultServerAsync(nickname);
+        }
+        
         /// This is hidden, by default, until a first newIdentity is added
         private async void onIdentitySelectedDropdownChangedAsync(ChangeEvent<string> evt)
         {
@@ -105,15 +142,15 @@ namespace SpacetimeDB.Editor
             bool isHidden = identitySelectedDropdown.style.display == DisplayStyle.None;
             
             // We have "some" newIdentity loaded by runtime code; show this dropdown
-            if (selectedAnything)
-            {
-                if (isHidden)
-                    identitySelectedDropdown.style.display = DisplayStyle.Flex;
-                
-                // We changed from a known identity to another known one.
-                // We should change the CLI default.
-                await setDefaultIdentityAsync(evt.newValue);
-            }
+            if (!selectedAnything)
+                return;
+            
+            if (isHidden)
+                identitySelectedDropdown.style.display = DisplayStyle.Flex;
+            
+            // We changed from a known identity to another known one.
+            // We should change the CLI default.
+            await setDefaultIdentityAsync(evt.newValue);
         }
         
         /// Used for init only, for when the persistent ViewDataKey
@@ -129,9 +166,17 @@ namespace SpacetimeDB.Editor
         private void onIdentityNicknameFocusOut(FocusOutEvent evt) =>
             checkIdentityReqsToggleIdentityBtn();
         
-        /// Toggle newIdentity btn enabled based on email + nickname being valid
+        /// Toggle newServer btn enabled based on email + nickname being valid
+        private void onServerNicknameFocusOut(FocusOutEvent evt) =>
+            checkServerReqsToggleServerBtn();
+        
+        /// Toggle newIdentity btn enabled based on nickname + email being valid
         private void onIdentityEmailTxtFocusOut(FocusOutEvent evt) =>
             checkIdentityReqsToggleIdentityBtn();
+        
+        /// Toggle newServer btn enabled based on nickname + host being valid
+        private void onServerHostTxtFocusOut(FocusOutEvent evt) =>
+            checkServerReqsToggleServerBtn();
         
         /// Toggle next section if !null
         private void onPublishModulePathTxtFocusOut(FocusOutEvent evt)
@@ -160,8 +205,41 @@ namespace SpacetimeDB.Editor
             suggestModuleNameIfEmpty();
 
         /// Curry to an async Task to install `wasm-opt` npm pkg
-        private async void onInstallWasmOptBtnClick() =>
-            await installWasmOptPackageViaNpmAsync();
+        private async void onInstallWasmOptBtnClick()
+        {
+            // Disable btn + show installing status
+            installWasmOptBtn.SetEnabled(false);
+            installWasmOptBtn.text = GetStyledStr(StringStyle.Action, "Installing ...");
+
+            try
+            {
+                await installWasmOptPackageViaNpmAsync();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e.Message}");
+                installWasmOptBtn.text = GetStyledStr(StringStyle.Error, $"<b>Error:</b> {e.Message}");
+                throw;
+            }
+        }
+        
+        /// Toggles the "new server" group UI
+        private void onServerAddNewShowUiBtnClick()
+        {
+            bool isHidden = serverNewGroupBox.style.display == DisplayStyle.None;
+            if (isHidden)
+            {
+                // Show
+                serverNewGroupBox.style.display = DisplayStyle.Flex;
+                serverAddNewShowUiBtn.text = GetStyledStr(StringStyle.Success, "-"); // Show opposite, styled
+            }
+            else
+            {
+                // Hide
+                serverNewGroupBox.style.display = DisplayStyle.None;
+                serverAddNewShowUiBtn.text = "+"; // Show opposite
+            }
+        }
         
         /// Toggles the "new identity" group UI
         private void onIdentityAddNewShowUiBtnClick()
@@ -214,12 +292,59 @@ namespace SpacetimeDB.Editor
                 : DisplayStyle.Flex;
         }
 
-        /// AKA AddNewIdentityBtnClick
+        /// AKA AddIdentityBtnClick
         private async void onIdentityAddBtnClickAsync()
         {
+            string nickname = identityNicknameTxt.value;
+            string email = identityEmailTxt.value;
+            
+            // Sanity check
+            if (string.IsNullOrEmpty(nickname) || string.IsNullOrEmpty(email))
+                return;
+            
+            // UI: Disable btn + show installing status to id label
+            identityAddBtn.SetEnabled(false);
+            identityStatusLabel.text = GetStyledStr(StringStyle.Action, $"Adding {nickname} ...");
+            identityStatusLabel.style.display = DisplayStyle.Flex;
+            publishStatusLabel.style.display = DisplayStyle.None;
+            publishResultFoldout.style.display = DisplayStyle.None;
+            
             try
             {
-                await addNewIdentity(identityNicknameTxt.value, identityEmailTxt.value);
+                await addIdentityAsync(nickname, email);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
+        }
+
+        /// AKA AddServerBtnClick
+        private async void onServerAddBtnClickAsync()
+        {
+            string nickname = serverNicknameTxt.value;
+            string host = serverHostTxt.value;
+            
+            // Sanity check
+            if (string.IsNullOrEmpty(nickname) || string.IsNullOrEmpty(host))
+                return;
+            
+            // UI: Disable btn + show installing status to id label
+            serverAddBtn.SetEnabled(false);
+            serverStatusLabel.text = GetStyledStr(StringStyle.Action, $"Adding {nickname} ...");
+            serverStatusLabel.style.display = DisplayStyle.Flex;
+            
+            // Hide the other sections (while clearing out their labels), since we rely on servers
+            identityStatusLabel.style.display = DisplayStyle.None;
+            identityFoldout.style.display = DisplayStyle.None;
+            publishFoldout.style.display = DisplayStyle.None;
+            publishStatusLabel.style.display = DisplayStyle.None;
+            publishResultFoldout.style.display = DisplayStyle.None;
+            
+            try
+            {
+                await addServerAsync(nickname, host);
             }
             catch (Exception e)
             {
@@ -245,5 +370,55 @@ namespace SpacetimeDB.Editor
             }
         }
         #endregion // Direct UI Callbacks
+
+        private void onAddServerFail(SpacetimeServer server, AddServerResult addServerResult)
+        {
+            serverAddBtn.SetEnabled(true);
+            serverStatusLabel.text = GetStyledStr(StringStyle.Error, 
+                $"<b>Failed:</b> Couldn't add `{server.Nickname}` server</b>\n" +
+                addServerResult.StyledFriendlyErrorMessage);
+                
+            serverStatusLabel.style.display = DisplayStyle.Flex;
+        }
+
+        private void onAddIdentityFail(SpacetimeIdentity identity, SpacetimeCliResult cliResult)
+        {
+            identityAddBtn.SetEnabled(true);
+            identityStatusLabel.text = GetStyledStr(StringStyle.Error, 
+                $"<b>Failed:</b> Couldn't add identity `{identity.Nickname}`</b>:\n" +
+                cliResult.CliError);
+                
+            identityStatusLabel.style.display = DisplayStyle.Flex;
+        }
+        
+        /// Success: Add to dropdown + set default + show. Hide the [+] add group.
+        /// Don't worry about caching choices; we'll get the new choices via CLI each load
+        private void onAddServerSuccess(SpacetimeServer server)
+        {
+            Debug.Log($"Add new server success: {server.Nickname}");
+            onGetSetServersSuccessEnsureDefault(new List<SpacetimeServer> { server });
+        }
+
+        /// Success: Add to dropdown + set default + show. Hide the [+] add group.
+        /// Don't worry about caching choices; we'll get the new choices via CLI each load
+        private void onAddIdentitySuccess(SpacetimeIdentity identity)
+        {
+            Debug.Log($"Add new identity success: {identity.Nickname}");
+            onGetSetIdentitiesSuccessEnsureDefault(new List<SpacetimeIdentity> { identity });
+        }
+
+        /// Success: We still want to show the install button, but tweak it.
+        /// It'll hide next time we publish
+        private void onInstallWasmOptPackageViaNpmSuccess()
+        {
+            
+            installWasmOptBtn.text = GetStyledStr(StringStyle.Success, "Installed");
+            publishResultIsOptimizedBuildToggle.value = true;
+        }
+
+        private void onInstallWasmOptPackageViaNpmFail(SpacetimeCliResult cliResult)
+        {
+            installWasmOptBtn.SetEnabled(false);
+        }
     }
 }

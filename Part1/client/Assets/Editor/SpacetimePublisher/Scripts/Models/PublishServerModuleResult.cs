@@ -128,7 +128,7 @@ namespace SpacetimeDB.Editor
                 this.PublishErrCode = PublishErrorCode.OS10061_ServerHostNotRunning;
                 this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
                     PublisherMeta.StringStyle.Error,
-                    "<b>Failed:</b> Server host not running:\n" +
+                    "<b>Failed:</b> Server host not running\n" +
                     "(1) Open terminal\n" +
                     "(2) `spacetime start`\n" +
                     "(3) Try again");

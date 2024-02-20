@@ -37,13 +37,26 @@ namespace SpacetimeDB.Editor
             return Regex.IsMatch(emailStr, pattern);
         }
 
-        /// Checked at OnFocusOut events to ensure both email+nickname are valid.
+        /// Useful for FocusOut events, checking the entire host for being valid.
+        /// At minimum, must start with "http".
+        private bool checkIsValidUrl(string url) => url.StartsWith("http");
+
+        /// Checked at OnFocusOut events to ensure both nickname+email txt fields are valid.
         /// Toggle identityAddBtn enabled based validity of both.
         private void checkIdentityReqsToggleIdentityBtn()
         {
-            bool isEmailValid = checkIsValidEmail(identityEmailTxt.value);
             bool isNicknameValid = !string.IsNullOrWhiteSpace(identityNicknameTxt.value);
-            identityAddBtn.SetEnabled(isEmailValid && isNicknameValid);
+            bool isEmailValid = checkIsValidEmail(identityEmailTxt.value);
+            identityAddBtn.SetEnabled(isNicknameValid && isEmailValid);
+        }
+        
+        /// Checked at OnFocusOut events to ensure both nickname-host txt fields are valid.
+        /// Toggle serverAddBtn enabled based validity of both.
+        private void checkServerReqsToggleServerBtn()
+        {
+            bool isHostValid = checkIsValidUrl(serverHostTxt.value);
+            bool isNicknameValid = !string.IsNullOrWhiteSpace(serverNicknameTxt.value);
+            serverAddBtn.SetEnabled(isNicknameValid && isHostValid);
         }
     }
 }

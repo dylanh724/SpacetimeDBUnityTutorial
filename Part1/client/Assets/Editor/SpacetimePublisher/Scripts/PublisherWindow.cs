@@ -17,12 +17,25 @@ namespace SpacetimeDB.Editor
         /// </summary>
         private bool _isFilePicking;
 
+        /// There's a known bug where default servers get wiped with no apparent pattern.
+        /// We'll try once to add them back in.
+        private bool isRegeneratingDefaultServers;
+
         #region UI Visual Elements
         private Button topBannerBtn;
         
         private GroupBox installCliGroupBox;
         private ProgressBar installCliProgressBar;
         private Label installCliStatusLabel;
+
+        private Foldout serverFoldout;
+        private DropdownField serverSelectedDropdown; // Don't set ViewDataKey; we'll set the default set in CLI
+        private Button serverAddNewShowUiBtn;
+        private GroupBox serverNewGroupBox;
+        private TextField serverNicknameTxt;
+        private TextField serverHostTxt;
+        private Button serverAddBtn;
+        private Label serverStatusLabel;
 
         private Foldout identityFoldout;
         private DropdownField identitySelectedDropdown; // Don't set ViewDataKey; we'll set the default set in CLI
@@ -82,17 +95,7 @@ namespace SpacetimeDB.Editor
         private async Task loadDynamicUiInitSequence()
         {
             await ensureSpacetimeCliInstalledAsync();
-            GetIdentitiesResult idsResult =  await getIdentitiesSetDropdown(); // @ PublisherWindowActions.cs => result will reveal more UI
-            
-            // We want to ensure we have a default identity. If we have some, but no default, set [0]
-            if (!idsResult.HasIdentitiesButNoDefault)
-                return;
-            
-            // We need a default identity set
-            string nickname = idsResult.Identities[0].Nickname; 
-            Debug.Log($"Warning: Found identities, but no default. Setting '{nickname}' default...");
-            await setDefaultIdentityAsync(nickname);
-
+            await getServersSetDropdown();
         }
 
         private void initVisualTreeStyles()
@@ -113,6 +116,15 @@ namespace SpacetimeDB.Editor
             installCliGroupBox = rootVisualElement.Q<GroupBox>(nameof(installCliGroupBox));
             installCliProgressBar = rootVisualElement.Q<ProgressBar>(nameof(installCliProgressBar));
             installCliStatusLabel = rootVisualElement.Q<Label>(nameof(installCliStatusLabel));
+            
+            serverFoldout = rootVisualElement.Q<Foldout>(nameof(serverFoldout));
+            serverSelectedDropdown = rootVisualElement.Q<DropdownField>(nameof(serverSelectedDropdown));
+            serverAddNewShowUiBtn = rootVisualElement.Q<Button>(nameof(serverAddNewShowUiBtn));
+            serverNewGroupBox = rootVisualElement.Q<GroupBox>(nameof(serverNewGroupBox));
+            serverNicknameTxt = rootVisualElement.Q<TextField>(nameof(serverNicknameTxt));
+            serverHostTxt = rootVisualElement.Q<TextField>(nameof(serverHostTxt));
+            serverAddBtn = rootVisualElement.Q<Button>(nameof(serverAddBtn));
+            serverStatusLabel = rootVisualElement.Q<Label>(nameof(serverStatusLabel));
             
             identityFoldout = rootVisualElement.Q<Foldout>(nameof(identityFoldout));
             identitySelectedDropdown = rootVisualElement.Q<DropdownField>(nameof(identitySelectedDropdown));
@@ -150,6 +162,13 @@ namespace SpacetimeDB.Editor
             Assert.IsNotNull(installCliGroupBox, $"Expected `#{nameof(installCliGroupBox)}`");
             Assert.IsNotNull(installCliProgressBar, $"Expected `#{nameof(installCliProgressBar)}`");
             Assert.IsNotNull(installCliStatusLabel, $"Expected `#{nameof(installCliStatusLabel)}`");
+            
+            Assert.IsNotNull(serverFoldout, $"Expected `#{nameof(serverFoldout)}`");
+            Assert.IsNotNull(serverSelectedDropdown, $"Expected `#{nameof(serverSelectedDropdown)}`");
+            Assert.IsNotNull(serverAddNewShowUiBtn, $"Expected `#{nameof(serverAddNewShowUiBtn)}`");
+            Assert.IsNotNull(serverNewGroupBox, $"Expected `#{nameof(serverNewGroupBox)}`");
+            Assert.IsNotNull(serverNicknameTxt, $"Expected `#{nameof(serverNicknameTxt)}`");
+            Assert.IsNotNull(serverHostTxt, $"Expected `#{nameof(serverHostTxt)}`");
             
             Assert.IsNotNull(identityFoldout, $"Expected `#{nameof(identityFoldout)}`");
             Assert.IsNotNull(identitySelectedDropdown, $"Expected `#{nameof(identitySelectedDropdown)}`");

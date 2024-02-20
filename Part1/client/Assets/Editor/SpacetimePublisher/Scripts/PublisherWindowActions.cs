@@ -7,19 +7,56 @@ using static SpacetimeDB.Editor.PublisherMeta;
 
 namespace SpacetimeDB.Editor
 {
-    /// Used for indirect actions from UI, not called directly from the UI itself.
-    /// For example, DoSomething() would fit here more than OnBtnClick() found @ `PublisherWindowCallbacks.cs`
-    /// Often wrapped in try/catch.
+    /// Unlike PublisherWindowCallbacks, these are not called *directly* from UI.
+    /// Runs an action -> Processes isSuccess -> calls success || fail @ PublisherWindowCallbacks.
+    /// Try to avoid updating UI from here.
     public partial class PublisherWindow
     {
         #region Init from PublisherWindowInit.CreateGUI
-        /// Try to get get list of Identities from CLI
-        private async Task<GetIdentitiesResult> getIdentitiesSetDropdown()
+        /// Try to get get list of Servers from CLI.
+        /// This should be called at init at runtime from PublisherWIndow at CreateGUI time.
+        private async Task getServersSetDropdown()
         {
+            GetServersResult getServersResult;
+            try
+            {
+                getServersResult = await SpacetimeDbCli.GetServersAsync();
+            } 
+            catch (Exception e)
+            { 
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
+            
+            // Process result and update UI
+            bool isSuccess = getServersResult.HasServer;
+            if (!isSuccess)
+            {
+                onGetSetServersFail(getServersResult);
+                return;
+            }
+            
+            // Success
+            await onGetSetServersSuccessEnsureDefault(getServersResult.Servers);
+            await getIdentitiesSetDropdown(); // Process and reveal the next UI group
+        }
+        
+        /// Try to get get list of Identities from CLI.
+        /// (!) Servers must already be set.
+        private async Task getIdentitiesSetDropdown()
+        {
+            // Validate: Only run this when there's a selected server
+            bool hasSelectedServer = serverSelectedDropdown.index >= 0;
+            if (!hasSelectedServer)
+            {
+                Debug.LogError("Tried to get identities before server is selected");
+                return;
+            }
+            
             GetIdentitiesResult getIdentitiesResult;
             try
             {
-                getIdentitiesResult = await SpacetimeDbCli.GetSetIdentitiesAsync();
+                getIdentitiesResult = await SpacetimeDbCli.GetIdentitiesAsync();
             } 
             catch (Exception e)
             { 
@@ -29,12 +66,14 @@ namespace SpacetimeDB.Editor
             
             // Process result and update UI
             bool isSuccess = getIdentitiesResult.HasIdentity;
-            if (isSuccess)
-                onGetSetIdentitiesSuccess(getIdentitiesResult.Identities);
-            else
+            if (!isSuccess)
+            {
                 onGetSetIdentitiesFail(getIdentitiesResult);
-
-            return getIdentitiesResult;
+                return;
+            }
+            
+            // Success
+            await onGetSetIdentitiesSuccessEnsureDefault(getIdentitiesResult.Identities);
         }
         #endregion // Init from PublisherWindowInit.CreateGUI
         
@@ -43,9 +82,9 @@ namespace SpacetimeDB.Editor
         /// bug: If you are calling this from CreateGUI, openFoldout will be ignored.
         private void revealPublishResultCacheIfHostExists(bool? openFoldout)
         {
-            bool hasVal = string.IsNullOrEmpty(publishResultHostTxt.value);
-            bool isPlaceholderVal = publishResultHostTxt.value.StartsWith("{"); 
-            if (hasVal || isPlaceholderVal)
+            bool hasVal = !string.IsNullOrEmpty(publishResultHostTxt.value);
+            bool isPlaceholderVal = hasVal && publishResultHostTxt.value.StartsWith("{"); 
+            if (!hasVal || isPlaceholderVal)
                 return;
             
             // Reveal the publish result info cache
@@ -97,23 +136,28 @@ namespace SpacetimeDB.Editor
         ///       any persistence may override this.
         private void resetUi()
         {
+            // Hide install CLI
             installCliGroupBox.style.display = DisplayStyle.None;
             installCliProgressBar.style.display = DisplayStyle.None;
             installCliStatusLabel.style.display = DisplayStyle.None;
             
+            // Hide all foldouts and labels from Identity+ (show Server)
+            toggleFoldoutRipple(startRippleFrom: FoldoutGroupType.Identity, show:false);
+            
+            // Hide server
+            serverAddNewShowUiBtn.style.display = DisplayStyle.None;
+            serverNewGroupBox.style.display = DisplayStyle.None;
+            resetServerDropdown();
+            serverSelectedDropdown.value = GetStyledStr(StringStyle.Action, "Searching ...");
+            
             identityAddNewShowUiBtn.style.display = DisplayStyle.None;
             identityNewGroupBox.style.display = DisplayStyle.None;
             resetIdentityDropdown();
-            identitySelectedDropdown.value = GetStyledStr(StringStyle.Action, "Searching..."); 
-            identityStatusLabel.style.display = DisplayStyle.None;
+            identitySelectedDropdown.value = GetStyledStr(StringStyle.Action, "Searching ..."); 
             identityAddBtn.SetEnabled(false);
              
-            publishFoldout.style.display = DisplayStyle.None;
             publishGroupBox.style.display = DisplayStyle.None;
-            publishInstallProgressBar.style.display = DisplayStyle.None;
-            publishStatusLabel.style.display = DisplayStyle.None;
-            publishResultFoldout.style.display = DisplayStyle.None;
-            publishResultFoldout.value = false;
+            publishResultFoldout.value = false; // Minimize foldout
             publishInstallProgressBar.style.display = DisplayStyle.None;
             
             // Hacky readonly Toggle feat workaround
@@ -121,16 +165,64 @@ namespace SpacetimeDB.Editor
             publishResultIsOptimizedBuildToggle.style.opacity = 1;
         }
         
-          private void onGetSetIdentitiesFail(GetIdentitiesResult getIdentitiesResult)
+        /// (!) bug: If NO servers are found, including the default, we'll regenerate them back.
+        private void onGetSetServersFail(GetServersResult getServersResult)
+        {
+            if (!getServersResult.HasServer && !isRegeneratingDefaultServers)
+            {
+                Debug.Log("[BUG] No servers found; defaults were wiped: " +
+                    "regenerating, then trying again...");
+                isRegeneratingDefaultServers = true;
+                _ = regenerateServers();         
+                return;
+            }
+            
+            // Hide dropdown, reveal new ui group
+            Debug.Log("No servers found - revealing 'add new server' group");
+
+            isRegeneratingDefaultServers = false; // in case we looped around to a fail
+            serverSelectedDropdown.choices.Clear();
+            serverSelectedDropdown.style.display = DisplayStyle.None;
+            serverNewGroupBox.style.display = DisplayStyle.Flex;
+        }
+
+        /// When local and testnet are missing, it's 99% due to a bug:
+        /// We'll add them back. Assuming default ports (3000) and testnet targets.
+        private async Task regenerateServers()
+        {
+            Debug.Log("Regenerating default servers: [ local, testnet* ] *Becomes default");
+            
+            // UI
+            serverStatusLabel.text = GetStyledStr(
+                StringStyle.Action, 
+                "<b>Regenerating default servers:</b>\n[ local, testnet* ]");
+            serverStatusLabel.style.display = DisplayStyle.Flex;
+
+            AddServerRequest addServerRequest = null;
+            
+            // local (forces `--no-fingerprint` so it doesn't need to be running now)
+            addServerRequest = new("local", "http://127.0.0.1:3000");
+            _ = await SpacetimeDbCli.AddServerAsync(addServerRequest);
+            
+            // testnet (becomes default)
+            addServerRequest = new("testnet", "https://testnet.spacetimedb.com");
+            _ = await SpacetimeDbCli.AddServerAsync(addServerRequest);
+            
+            // Success - try again
+            _ = getServersSetDropdown();
+        }
+
+        private void onGetSetIdentitiesFail(GetIdentitiesResult getIdentitiesResult)
         {
             // Hide dropdown, reveal new ui group
-            Debug.Log("No identities found - revealing new identity group");
+            Debug.Log("No identities found - revealing 'add new identity' group");
             
             identitySelectedDropdown.choices.Clear();
             identitySelectedDropdown.style.display = DisplayStyle.None;
             identityNewGroupBox.style.display = DisplayStyle.Flex;
         }
 
+        /// Works around UI Builder bug on init that will add the literal "string" type to [0]
         private void resetIdentityDropdown()
         {
             identitySelectedDropdown.choices.Clear();
@@ -138,15 +230,20 @@ namespace SpacetimeDB.Editor
             identitySelectedDropdown.index = -1;
         }
         
-        /// Set the identity dropdown. TODO: Do we have any reason to cache this list?
-        private void onGetSetIdentitiesSuccess(List<SpacetimeIdentity> identities)
+        /// Works around UI Builder bug on init that will add the literal "string" type to [0]
+        private void resetServerDropdown()
+        {
+            serverSelectedDropdown.choices.Clear();
+            serverSelectedDropdown.value = "";
+            serverSelectedDropdown.index = -1;
+        }
+        
+        /// Set the selected identity dropdown. If identities found but no default, [0] will be set. 
+        private async Task onGetSetIdentitiesSuccessEnsureDefault(List<SpacetimeIdentity> identities)
         {
             // Logs for each found, with default shown
             foreach (SpacetimeIdentity identity in identities)
                 Debug.Log($"Found identity: {identity}");
-            
-            // Set the dropdown with the newIdentity nicknames
-
             
             // Setting will trigger the onIdentitySelectedDropdownChangedAsync event @ PublisherWindowInit
             for (int i = 0; i < identities.Count; i++)
@@ -155,16 +252,25 @@ namespace SpacetimeDB.Editor
                 identitySelectedDropdown.choices.Add(identity.Nickname);
 
                 if (identity.IsDefault)
-                    identitySelectedDropdown.index = i;
+                {
+                    // Set the index to the most recently-added one
+                    int recentlyAddedIndex = identitySelectedDropdown.choices.Count - 1;
+                    identitySelectedDropdown.index = recentlyAddedIndex;
+                }
             }
             
             // Ensure a default was found
+            bool foundIdentity = identities.Count > 0;
             bool foundDefault = identitySelectedDropdown.index >= 0;
-            if (!foundDefault)
+            if (foundIdentity && !foundDefault)
             {
-                Debug.LogError($"No default identity found - Falling back to [0]:{identities[0].Nickname}");
+                Debug.LogError("Found Identities, but no default " +
+                    $"Falling back to [0]:{identities[0].Nickname} and setting via CLI...");
                 identitySelectedDropdown.index = 0;
-                // => When this is returned, the next task should be setDefaultIdentityAsync()
+            
+                // We need a default identity set
+                string nickname = identities[0].Nickname;
+                await setDefaultIdentityAsync(nickname);
             }
             
             // Allow selection, show [+] new reveal ui btn
@@ -179,8 +285,55 @@ namespace SpacetimeDB.Editor
             publishFoldout.style.display = DisplayStyle.Flex;
         }
         
+        /// Set the selected server dropdown. If servers found but no default, [0] will be set. 
+        private async Task onGetSetServersSuccessEnsureDefault(List<SpacetimeServer> servers)
+        {
+            // Logs for each found, with default shown
+            foreach (SpacetimeServer server in servers)
+                Debug.Log($"Found server: {server}");
+            
+            // Setting will trigger the onIdentitySelectedDropdownChangedAsync event @ PublisherWindowInit
+            for (int i = 0; i < servers.Count; i++)
+            {
+                SpacetimeServer server = servers[i];
+                serverSelectedDropdown.choices.Add(server.Nickname);
+
+                if (server.IsDefault)
+                {
+                    // Set the index to the most recently-added one
+                    int recentlyAddedIndex = serverSelectedDropdown.choices.Count - 1;
+                    serverSelectedDropdown.index = recentlyAddedIndex;
+                }
+            }
+            
+            // Ensure a default was found
+            bool foundServer = servers.Count > 0;
+            bool foundDefault = serverSelectedDropdown.index >= 0;
+            if (foundServer && !foundDefault)
+            {
+                Debug.LogError("Found Servers, but no default: " +
+                    $"Falling back to [0]:{servers[0].Nickname} and setting via CLI...");
+                serverSelectedDropdown.index = 0;
+            
+                // We need a default server set
+                string nickname = servers[0].Nickname;
+                await SpacetimeDbCli.SetDefaultServerAsync(nickname);
+            }
+            
+            // Allow selection, show [+] new reveal ui btn
+            serverSelectedDropdown.pickingMode = PickingMode.Position;
+            serverAddNewShowUiBtn.style.display = DisplayStyle.Flex;
+            
+            // Hide UI
+            serverStatusLabel.style.display = DisplayStyle.None;
+            serverNewGroupBox.style.display = DisplayStyle.None;
+            
+            // Show the next section
+            identityFoldout.style.display = DisplayStyle.Flex;
+        }
+    
         /// This will reveal the group and initially check for the spacetime cli tool
-        private async void revealPublisherGroupUiAsync()
+        private void revealPublisherGroupUiAsync()
         {
             // Show and enable group, but disable the publish btn
             // to check/install Spacetime CLI tool
@@ -226,20 +379,17 @@ namespace SpacetimeDB.Editor
 
         private async Task<PublishServerModuleResult> publish()
         {
+            publishStatusLabel.style.display = DisplayStyle.None;
             _ = startProgressBarAsync(
                 publishInstallProgressBar,
-                barTitle: "Publishing...",
+                barTitle: "Publishing to SpacetimeDB ...",
                 initVal: 1,
                 valIncreasePerSec: 1,
                 autoHideOnComplete: false);
             
-            publishStatusLabel.text = GetStyledStr(
-                StringStyle.Action, 
-                "Publishing Module to SpacetimeDB");
-
             PublishRequest publishRequest = new(publishModuleNameTxt.value, publishModulePathTxt.value);
-            
             PublishServerModuleResult publishResult;
+            
             try
             {
                 publishResult = await SpacetimeDbCli.PublishServerModuleAsync(publishRequest);
@@ -275,7 +425,7 @@ namespace SpacetimeDB.Editor
         /// Stops when reached 100, or if style display is hidden
         private async Task startProgressBarAsync(
             ProgressBar progressBar,
-            string barTitle = "Running CLI...",
+            string barTitle = "Running CLI ...",
             int initVal = 5, 
             int valIncreasePerSec = 5,
             bool autoHideOnComplete = true)
@@ -320,7 +470,7 @@ namespace SpacetimeDB.Editor
             // Command !found: Update status => Install now
             _ = startProgressBarAsync(
                 installCliProgressBar, 
-                barTitle: "Installing SpacetimeDB CLI...",
+                barTitle: "Installing SpacetimeDB CLI ...",
                 initVal: 4,
                 valIncreasePerSec: 4,
                 autoHideOnComplete: true);
@@ -359,7 +509,7 @@ namespace SpacetimeDB.Editor
         {
             installCliStatusLabel.text = GetStyledStr(
                 StringStyle.Error,
-                $"<b>Failed:</b> Could not install Spacetime CLI - {friendlyFailMsg}");
+                $"<b>Failed:</b> Could not install Spacetime CLI\n{friendlyFailMsg}");
             
             installCliStatusLabel.style.display = DisplayStyle.Flex;
             installCliGroupBox.style.display = DisplayStyle.Flex;
@@ -376,6 +526,7 @@ namespace SpacetimeDB.Editor
         private void updatePublishStatus(StringStyle style, string friendlyStr)
         {
             publishStatusLabel.text = GetStyledStr(style, friendlyStr);
+            publishStatusLabel.style.display = DisplayStyle.Flex;
 
             if (style != StringStyle.Error)
                 return;
@@ -390,94 +541,68 @@ namespace SpacetimeDB.Editor
             publishBtn.SetEnabled(false);
             publishStatusLabel.text = GetStyledStr(
                 StringStyle.Action, 
-                "Connecting...");
+                "Connecting ...");
             publishStatusLabel.style.display = DisplayStyle.Flex;
         }
         
         /// Install `wasm-opt` npm pkg for a "set and forget" publish optimization boost
         private async Task installWasmOptPackageViaNpmAsync()
         {
-            // Disable btn + show installing status
-            installWasmOptBtn.SetEnabled(false);
-            installWasmOptBtn.text = GetStyledStr(StringStyle.Action, "Installing...");
+            SpacetimeCliResult cliResult = await SpacetimeDbCli.InstallWasmOptPkgAsync();
 
-            SpacetimeCliResult cliResult;
+            bool isSuccess = !cliResult.HasCliErr;
+            if (isSuccess)
+                onInstallWasmOptPackageViaNpmSuccess();
+            else
+                onInstallWasmOptPackageViaNpmFail(cliResult);
+        }
+        
+        private async Task addIdentityAsync(string nickname, string email)
+        {
+            // Add newIdentity
+            AddIdentityRequest addIdentityRequestRequest = new(nickname, email);
+            SpacetimeCliResult cliResult = await SpacetimeDbCli.AddIdentityAsync(addIdentityRequestRequest);
+            SpacetimeIdentity identity = new(nickname, isDefault:true);
+
+            if (cliResult.HasCliErr)
+                onAddIdentityFail(identity, cliResult);
+            else
+                onAddIdentitySuccess(identity);
+        }
+        
+        private async Task addServerAsync(string nickname, string host)
+        {
+            // Run the CLI cmd
+            AddServerResult addServerResult;
             try
             {
-                cliResult = await SpacetimeDbCli.InstallWasmOptPkgAsync();
+                AddServerRequest request = new(nickname, host);
+                addServerResult = await SpacetimeDbCli.AddServerAsync(request);
             }
             catch (Exception e)
             {
-                Debug.LogError($"Error: {e.Message}");
-                installWasmOptBtn.text = GetStyledStr(StringStyle.Error, $"<b>Error:</b> {e.Message}");
+                Debug.LogError($"Error: {e}");
                 throw;
             }
-
-            bool isSuccess = !cliResult.HasCliErr;
-            if (!isSuccess)
-            {
-                // Error
-                installWasmOptBtn.SetEnabled(false);
-                return;
-            }
             
-            // Success: We still want to show the install button, but tweak it.
-            // It'll hide next time we publish
-            installWasmOptBtn.text = GetStyledStr(StringStyle.Success, "Installed");
-            publishResultIsOptimizedBuildToggle.value = true;
+            SpacetimeServer server = new(nickname, host, isDefault:true);
+
+            if (addServerResult.HasCliErr)
+                onAddServerFail(server, addServerResult);
+            else
+                onAddServerSuccess(server);
         }
-        
-        private async Task addNewIdentity(string nickname, string email)
+
+        private async Task setDefaultIdentityAsync(string idNicknameOrDbAddress)
         {
             // Sanity check
-            if (string.IsNullOrEmpty(nickname) || string.IsNullOrEmpty(email))
-                return;
-            
-            // UI: Disable btn + show installing status to id label
-            identityAddBtn.SetEnabled(false);
-            identityStatusLabel.text = GetStyledStr(StringStyle.Action, $"Adding {nickname}...");
-            identityStatusLabel.style.display = DisplayStyle.Flex;
-            publishStatusLabel.style.display = DisplayStyle.None;
-            publishResultFoldout.style.display = DisplayStyle.None;
-            
-            // Add newIdentity
-            NewNewIdentityRequest newNewIdentityRequest = new(nickname, email);
-            SpacetimeCliResult cliResult = await SpacetimeDbCli.AddNewIdentityAsync(newNewIdentityRequest);
-            SpacetimeIdentity identity = new(nickname, isDefault:true);
-            onAddNewIdentityDone(identity, cliResult);
-        }
-
-        private void onAddNewIdentityDone(SpacetimeIdentity identity, SpacetimeCliResult cliResult)
-        {
-            // Common
-            
-            if (cliResult.HasCliErr)
-            {
-                // Fail
-                identityAddBtn.SetEnabled(true);
-                identityStatusLabel.text = GetStyledStr(
-                    StringStyle.Error, 
-                    $"<b>Failed to add `{identity.Nickname}`</b>: {cliResult.CliError}");
-                
-                identityStatusLabel.style.display = DisplayStyle.Flex;
-            }
-
-            // Success: Add to dropdown + set default + show. Hide the [+] add group.
-            // Don't worry about caching choices; we'll get the new choices via CLI each load
-            Debug.Log($"Added new identity success: {identity.Nickname}");
-            onGetSetIdentitiesSuccess(new List<SpacetimeIdentity> { identity });
-        }
-
-        private async Task setDefaultIdentityAsync(string nicknameOrDbAddress)
-        {
-            // Sanity check
-            if (string.IsNullOrEmpty(nicknameOrDbAddress))
+            if (string.IsNullOrEmpty(idNicknameOrDbAddress))
                 return;
             
             SpacetimeCliResult cliResult;
             try
             {
-                cliResult = await SpacetimeDbCli.SetDefaultIdentityAsync(nicknameOrDbAddress);                
+                cliResult = await SpacetimeDbCli.SetDefaultIdentityAsync(idNicknameOrDbAddress);                
             }
             catch (Exception e)
             {
@@ -487,7 +612,7 @@ namespace SpacetimeDB.Editor
 
             bool isSuccess = !cliResult.HasCliErr;
             if (isSuccess)
-                Debug.Log($"Changed default identity to: {nicknameOrDbAddress}");
+                Debug.Log($"Changed default identity to: {idNicknameOrDbAddress}");
             else
                 Debug.LogError($"Failed to set default identity: {cliResult.CliError}");
         }
@@ -499,6 +624,45 @@ namespace SpacetimeDB.Editor
             publishResultIsOptimizedBuildToggle.value = false;
         }
         
-        
+        /// Toggles the group visibility of the foldouts. Labels also hide if !show.
+        /// Toggles ripple downwards from top.
+        private void toggleFoldoutRipple(FoldoutGroupType startRippleFrom, bool show)
+        {
+            // ---------------
+            // Server, Identity, Publish, PublishResult
+            if (startRippleFrom <= FoldoutGroupType.Server)
+            {
+                serverFoldout.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+                if (!show)
+                    serverStatusLabel.style.display = DisplayStyle.None;
+            }
+            
+            // ---------------
+            // Identity, Publish, PublishResult
+            if (startRippleFrom <= FoldoutGroupType.Identity)
+            {
+                identityFoldout.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+                if (!show)
+                    identityStatusLabel.style.display = DisplayStyle.None;    
+            }
+            else
+                return;
+            
+            // ---------------
+            // Publish, PublishResult
+            if (startRippleFrom <= FoldoutGroupType.Publish)
+            {
+                publishFoldout.style.display = DisplayStyle.None;
+                if (!show)
+                    publishStatusLabel.style.display = DisplayStyle.None;
+            }
+            else
+                return;
+
+            // ---------------
+            // PublishResult+
+            if (startRippleFrom <= FoldoutGroupType.PublishResult)
+                publishResultFoldout.style.display = DisplayStyle.None;
+        }
     }
 }

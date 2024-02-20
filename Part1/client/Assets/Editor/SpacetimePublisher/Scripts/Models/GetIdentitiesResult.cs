@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using Google.Protobuf.WellKnownTypes;
 
 namespace SpacetimeDB.Editor
 {
-    /// Result of `spacetime newIdentity list`
+    /// Result of `spacetime identity list`
     public class GetIdentitiesResult : SpacetimeCliResult
     {
         public List<SpacetimeIdentity> Identities { get; private set; }
@@ -21,7 +20,6 @@ namespace SpacetimeDB.Editor
             // Ignore the top hashes (TODO: What are top hashes?)
             // ###########################################################################################
             /*
-             * Identities for testnet:
              DEFAULT  IDENTITY                                                          NAME            
                       1111111111111111111111111111111111111111111111111111111111111111                  
                       2222222222222222222222222222222222222222222222222222222222222222                  
@@ -33,11 +31,11 @@ namespace SpacetimeDB.Editor
              */
             // ###########################################################################################
             
-            // Split the input string into lines considering the escaped newline characters
-            string[] lines = CliOutput.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries); 
-
             // Initialize the list to store nicknames
             this.Identities = new List<SpacetimeIdentity>();
+            
+            // Split the input string into lines considering the escaped newline characters
+            string[] lines = CliOutput.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries); 
 
             // Corrected regex pattern to ensure it captures the nickname following the hash and spaces
             // This pattern assumes the nickname is the last element in the line after the hash

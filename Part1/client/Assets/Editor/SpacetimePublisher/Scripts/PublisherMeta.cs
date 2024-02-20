@@ -9,6 +9,14 @@ namespace SpacetimeDB.Editor
             Error,
             Success,
         }
+        
+        public enum FoldoutGroupType
+        {
+            Server,
+            Identity,
+            Publish,
+            PublishResult,
+        }
 
         public const string TOP_BANNER_CLICK_LINK = "https://spacetimedb.com/docs/modules";
         public const string DOCS_URL = "https://spacetimedb.com/install";

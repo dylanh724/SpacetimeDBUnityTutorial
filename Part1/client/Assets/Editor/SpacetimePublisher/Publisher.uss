@@ -32,3 +32,13 @@ TextField > Label {
     font-size: 12px;
     -unity-font-style: normal;
 }
+
+.unity-progress-bar Label {
+    color: rgb(255, 234, 48);
+    -unity-text-align: upper-center;
+    -unity-font-style: normal;
+}
+
+#unity-text-input {
+    color: rgb(182, 192, 207);
+}
