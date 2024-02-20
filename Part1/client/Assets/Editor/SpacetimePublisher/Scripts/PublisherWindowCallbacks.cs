@@ -381,12 +381,12 @@ namespace SpacetimeDB.Editor
             serverStatusLabel.style.display = DisplayStyle.Flex;
         }
 
-        private void onAddIdentityFail(SpacetimeIdentity identity, SpacetimeCliResult cliResult)
+        private void onAddIdentityFail(SpacetimeIdentity identity, AddIdentityResult addIdentityResult)
         {
             identityAddBtn.SetEnabled(true);
             identityStatusLabel.text = GetStyledStr(StringStyle.Error, 
-                $"<b>Failed:</b> Couldn't add identity `{identity.Nickname}`</b>:\n" +
-                cliResult.CliError);
+                $"<b>Failed:</b> Couldn't add identity `{identity.Nickname}`\n" +
+                addIdentityResult.StyledFriendlyErrorMessage);
                 
             identityStatusLabel.style.display = DisplayStyle.Flex;
         }

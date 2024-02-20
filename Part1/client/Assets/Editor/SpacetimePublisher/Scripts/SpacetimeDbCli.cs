@@ -234,11 +234,12 @@ namespace SpacetimeDB.Editor
         }
         
         /// Uses the `spacetime identity new` CLI command, then set as default.
-        public static async Task<SpacetimeCliResult> AddIdentityAsync(AddIdentityRequest addIdentityRequest)
+        public static async Task<AddIdentityResult> AddIdentityAsync(AddIdentityRequest addIdentityRequest)
         {
             string argSuffix = $"spacetime identity new {addIdentityRequest}"; // Forced set as default
             SpacetimeCliResult cliResult = await runCliCommandAsync(argSuffix);
-            return cliResult;
+            AddIdentityResult addIdentityResult = new(cliResult);
+            return addIdentityResult;
         }
         
         /// Uses the `spacetime server add` CLI command, then set as default.

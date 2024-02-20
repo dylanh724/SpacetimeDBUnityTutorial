@@ -105,6 +105,9 @@ namespace SpacetimeDB.Editor
             // Set the tooltip to equal the path, since it's likely cutoff
             publishModulePathTxt.tooltip = publishModulePathTxt.value;
             
+            // Since we changed the path, we should wipe stale publish info
+            resetPublishedInfoCache();
+            
             // ServerModulePathTxt persists: If previously entered, show the publish group
             bool hasPathSet = !string.IsNullOrEmpty(publishModulePathTxt.value);
             if (hasPathSet)
@@ -561,11 +564,11 @@ namespace SpacetimeDB.Editor
         {
             // Add newIdentity
             AddIdentityRequest addIdentityRequestRequest = new(nickname, email);
-            SpacetimeCliResult cliResult = await SpacetimeDbCli.AddIdentityAsync(addIdentityRequestRequest);
+            AddIdentityResult addIdentityResult = await SpacetimeDbCli.AddIdentityAsync(addIdentityRequestRequest);
             SpacetimeIdentity identity = new(nickname, isDefault:true);
 
-            if (cliResult.HasCliErr)
-                onAddIdentityFail(identity, cliResult);
+            if (addIdentityResult.HasCliErr)
+                onAddIdentityFail(identity, addIdentityResult);
             else
                 onAddIdentitySuccess(identity);
         }
