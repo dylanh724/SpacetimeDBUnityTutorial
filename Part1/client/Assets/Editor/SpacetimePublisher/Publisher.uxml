@@ -54,8 +54,8 @@
             </ui:Foldout>
             <ui:VisualElement name="spacer10" style="height: 10px;" />
             <ui:Foldout text="&lt;b&gt;Published Info Cache&lt;/b&gt;" name="publishResultFoldout" view-data-key="PublishResultFoldout" value="true" style="display: flex; -unity-font-style: normal;">
-                <ui:TextField picking-mode="Ignore" label="Host:" value="{publishResultHostTxt}" name="publishResultHostTxt" multiline="false" tooltip="host:ip" view-data-key="publishResultHostTxt" readonly="true" focusable="false" />
-                <ui:TextField picking-mode="Ignore" label="DB Address:" value="{publishResultDbAddressTxt}" name="publishResultDbAddressTxt" multiline="true" tooltip="The DB Address mapped to your Server Module Name" view-data-key="publishResultDbAddressTxt" readonly="true" focusable="false" />
+                <ui:TextField picking-mode="Ignore" label="Host:" name="publishResultHostTxt" multiline="false" tooltip="host:ip" view-data-key="publishResultHostTxt" readonly="true" focusable="false" />
+                <ui:TextField picking-mode="Ignore" label="DB Address:" name="publishResultDbAddressTxt" multiline="true" tooltip="The DB Address mapped to your Server Module Name" view-data-key="publishResultDbAddressTxt" readonly="true" focusable="false" />
                 <ui:VisualElement name="optimizedHorizontal" style="flex-grow: 1; flex-direction: row;">
                     <ui:Toggle label="Optimized Build:" name="publishResultIsOptimizedBuildToggle" view-data-key="publishResultIsOptimizedBuildToggle" tooltip="via `opt-wasm`" value="false" focusable="false" />
                     <ui:Button text="Install Package" parse-escape-sequences="true" display-tooltip-when-elided="true" name="installWasmOptBtn" tooltip="Set &amp; Forget: Globally install `wasm-opt` via npm." style="flex-grow: 1;" />
