@@ -11,8 +11,8 @@ namespace SpacetimeDB.Editor
         /// The errors may have false-positive warnings; this is the true success checker
         public bool IsSuccessfulPublish { get; private set; }
         
-        /// `wasm-opt` !found, so the module continued with an "unoptimised" version
-        public bool CouldNotFindWasmOpt { get; private set; }
+        /// Warning: `wasm-opt` !found, so the module continued with an "unoptimised" version
+        public bool PublishedWithoutWasmOptOptimization { get; private set; }
 
         /// Eg: "http://localhost:3000" || "https://testnet.spacetimedb.com"
         public string UploadedToHost { get; private set; }
@@ -56,6 +56,7 @@ namespace SpacetimeDB.Editor
             MSB1003_InvalidProjectDir,
             OS10061_ServerHostNotRunning,
             DBUpdateRejected_PermissionDenied,
+            CancelledOperation,
             UnknownError,
         }
         #endregion // Errs
@@ -86,7 +87,7 @@ namespace SpacetimeDB.Editor
 
         private void onSuccess()
         {
-            this.CouldNotFindWasmOpt = CliOutput.Contains("Could not find wasm-opt");
+            this.PublishedWithoutWasmOptOptimization = CliError.Contains("Could not find wasm-opt");
             this.IsLocal = CliOutput.Contains("Uploading to local =>");
             this.DatabaseAddressHash = getDatabaseAddressHash();
             setUploadedToInfo();
@@ -128,10 +129,10 @@ namespace SpacetimeDB.Editor
                 this.PublishErrCode = PublishErrorCode.OS10061_ServerHostNotRunning;
                 this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
                     PublisherMeta.StringStyle.Error,
-                    "<b>Failed:</b> Server host not running\n" +
+                    "<b>Failed:</b> Server host not running\n<align=left>" +
                     "(1) Open terminal\n" +
                     "(2) `spacetime start`\n" +
-                    "(3) Try again");
+                    "(3) Try again</align>");
             }
             else
                 this.PublishErrCode = PublishErrorCode.UnknownError;
@@ -140,6 +141,16 @@ namespace SpacetimeDB.Editor
         private void onCliError(SpacetimeCliResult cliResult)
         {
             // CliError >>
+            bool isCancelled = cliResult.CliError == "Canceled";
+            if (isCancelled)
+            {
+                this.PublishErrCode = PublishErrorCode.UnknownError;
+                this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
+                    PublisherMeta.StringStyle.Error,
+                    "Cancelled");
+                return;
+            }
+            
             bool hasErrWorkingProjDirNotFound =
                 cliResult.HasCliErr &&
                 cliResult.CliOutput.Contains("error MSB1003"); // Working proj dir !found
@@ -150,6 +161,7 @@ namespace SpacetimeDB.Editor
                 this.StyledFriendlyErrorMessage = PublisherMeta.GetStyledStr(
                     PublisherMeta.StringStyle.Error,
                     "<b>Failed:</b> Invalid server module dir");
+                return;
             }
                     
             // "Error: Database update rejected: Update database `{dbAddressHash}`: Permission denied"
@@ -161,6 +173,7 @@ namespace SpacetimeDB.Editor
                     PublisherMeta.StringStyle.Error,
                     "<b>Failed:</b> Database update rejected\n" +
                     "Permission denied - unexpected identity<>module name match");
+                return;
             }
         }
 

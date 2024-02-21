@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
@@ -11,6 +12,7 @@ namespace SpacetimeDB.Editor
     /// Note the dynamic init sequence logic @ loadDynamicUiInitSequence()
     public partial class PublisherWindow : EditorWindow
     {
+        #region Operational State Vars
         /// <summary>
         /// Since we have FocusOut events, this will sometimes trigger
         /// awkwardly if you jump from input to a file picker button
@@ -19,7 +21,11 @@ namespace SpacetimeDB.Editor
 
         /// There's a known bug where default servers get wiped with no apparent pattern.
         /// We'll try once to add them back in.
-        private bool isRegeneratingDefaultServers;
+        private bool _isRegeneratingDefaultServers;
+
+        private CancellationTokenSource _cts;
+        #endregion // Operational State Vars
+        
 
         #region UI Visual Elements
         private Button topBannerBtn;
@@ -57,12 +63,14 @@ namespace SpacetimeDB.Editor
         private ProgressBar publishInstallProgressBar;
         private Label publishStatusLabel;
         private Button publishBtn;
+        private Button publishCancelBtn;
         
         private Foldout publishResultFoldout;
         private TextField publishResultHostTxt; // readonly
         private TextField publishResultDbAddressTxt; // readonly
         private Toggle publishResultIsOptimizedBuildToggle; // Set readonly via hacky workaround (SetEnabled @ ResetUi)
-        private Button installWasmOptBtn; // Only shows after a publish where wasm-opt was !found
+        private Button installWasmOptBtn; // Only shows after a publishAsync where wasm-opt was !found
+        private ProgressBar installWasmOptProgressBar; // Shows after installWasmOptBtn clicked
         #endregion // UI Visual Elements
         
         
@@ -145,12 +153,14 @@ namespace SpacetimeDB.Editor
             publishInstallProgressBar = rootVisualElement.Q<ProgressBar>(nameof(publishInstallProgressBar));
             publishStatusLabel = rootVisualElement.Q<Label>(nameof(publishStatusLabel));
             publishBtn = rootVisualElement.Q<Button>(nameof(publishBtn));
+            publishCancelBtn = rootVisualElement.Q<Button>(nameof(publishCancelBtn));
             
             publishResultFoldout = rootVisualElement.Q<Foldout>(nameof(publishResultFoldout));
             publishResultHostTxt = rootVisualElement.Q<TextField>(nameof(publishResultHostTxt));
             publishResultDbAddressTxt = rootVisualElement.Q<TextField>(nameof(publishResultDbAddressTxt));
             publishResultIsOptimizedBuildToggle = rootVisualElement.Q<Toggle>(nameof(publishResultIsOptimizedBuildToggle));
             installWasmOptBtn = rootVisualElement.Q<Button>(nameof(installWasmOptBtn));
+            installWasmOptProgressBar = rootVisualElement.Q<ProgressBar>(nameof(installWasmOptProgressBar));
         }
 
         /// Changing implicit names can easily cause unexpected nulls
@@ -191,12 +201,14 @@ namespace SpacetimeDB.Editor
             Assert.IsNotNull(publishInstallProgressBar, $"Expected `#{nameof(publishInstallProgressBar)}`");
             Assert.IsNotNull(publishStatusLabel, $"Expected `#{nameof(publishStatusLabel)}`");
             Assert.IsNotNull(publishBtn, $"Expected `#{nameof(publishBtn)}`");
+            Assert.IsNotNull(publishCancelBtn, $"Expected `#{nameof(publishCancelBtn)}`");
             
             Assert.IsNotNull(publishResultFoldout, $"Expected `#{nameof(publishResultFoldout)}`");
             Assert.IsNotNull(publishResultHostTxt, $"Expected `#{nameof(publishResultHostTxt)}`");
             Assert.IsNotNull(publishResultDbAddressTxt, $"Expected `#{nameof(publishResultDbAddressTxt)}`");
             Assert.IsNotNull(publishResultIsOptimizedBuildToggle, $"Expected `#{nameof(publishResultIsOptimizedBuildToggle)}`");
             Assert.IsNotNull(installWasmOptBtn, $"Expected `#{nameof(installWasmOptBtn)}`");
+            Assert.IsNotNull(installWasmOptProgressBar, $"Expected `#{nameof(installWasmOptProgressBar)}`");
         }
         #endregion // Init
     }

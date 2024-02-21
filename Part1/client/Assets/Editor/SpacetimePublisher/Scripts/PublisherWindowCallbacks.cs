@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -41,7 +42,8 @@ namespace SpacetimeDB.Editor
             publishPathSetDirectoryBtn.clicked += OnPublishPathSetDirectoryBtnClick; // Show folder dialog -> Set path label
             publishModuleNameTxt.RegisterCallback<FocusOutEvent>(onPublishModuleNameTxtFocusOut); // Suggest module name if empty
             publishModuleNameTxt.RegisterValueChangedCallback(onPublishModuleNameTxtChanged); // Replace spaces with dashes
-            publishBtn.clicked += onPublishBtnClickAsync; // Start publish chain
+            publishBtn.clicked += onPublishBtnClickAsync; // Start publishAsync chain
+            publishCancelBtn.clicked += onCancelPublishBtnClick; // Cancel publishAsync chain
             
             // Show [Install Package] btn if !optimized
             publishResultIsOptimizedBuildToggle.RegisterValueChangedCallback(
@@ -131,8 +133,11 @@ namespace SpacetimeDB.Editor
             
             // We changed from a known server to another known one.
             // We should change the CLI default.
-            string nickname = evt.newValue;
-            await SpacetimeDbCli.SetDefaultServerAsync(nickname);
+            string serverNickname = evt.newValue;
+            Debug.Log($"Selected server changed to {serverNickname} (from {evt.previousValue})");
+            
+            // Process via CLI => Set default, revalidate identities
+            await setDefaultServerRefreshIdentitiesAsync(serverNickname);
         }
         
         /// This is hidden, by default, until a first newIdentity is added
@@ -188,7 +193,7 @@ namespace SpacetimeDB.Editor
             bool hasPathSet = !string.IsNullOrEmpty(publishModulePathTxt.value);
             if (hasPathSet)
             {
-                // Since we just changed the path, wipe old publish info cache
+                // Since we just changed the path, wipe old publishAsync info cache
                 resetPublishedInfoCache();
                 
                 // Normalize, then reveal the next UI group
@@ -207,9 +212,15 @@ namespace SpacetimeDB.Editor
         /// Curry to an async Task to install `wasm-opt` npm pkg
         private async void onInstallWasmOptBtnClick()
         {
-            // Disable btn + show installing status
+            // Set installing UI
+            publishBtn.SetEnabled(false);
             installWasmOptBtn.SetEnabled(false);
             installWasmOptBtn.text = GetStyledStr(StringStyle.Action, "Installing ...");
+            _ = startProgressBarAsync(
+                installWasmOptProgressBar,
+                barTitle: "Installing `wasm-opt` via npm ...",
+                autoHideOnComplete: false);
+            installCliProgressBar.style.display = DisplayStyle.Flex;
 
             try
             {
@@ -219,7 +230,13 @@ namespace SpacetimeDB.Editor
             {
                 Debug.LogError($"Error: {e.Message}");
                 installWasmOptBtn.text = GetStyledStr(StringStyle.Error, $"<b>Error:</b> {e.Message}");
+                installWasmOptBtn.SetEnabled(true);
                 throw;
+            }
+            finally
+            {
+                installWasmOptProgressBar.style.display = DisplayStyle.None;
+                publishBtn.SetEnabled(true);
             }
         }
         
@@ -229,9 +246,11 @@ namespace SpacetimeDB.Editor
             bool isHidden = serverNewGroupBox.style.display == DisplayStyle.None;
             if (isHidden)
             {
-                // Show
+                // Show + UX: Focus the 1st field
                 serverNewGroupBox.style.display = DisplayStyle.Flex;
                 serverAddNewShowUiBtn.text = GetStyledStr(StringStyle.Success, "-"); // Show opposite, styled
+                serverNicknameTxt.Focus();
+                serverNicknameTxt.SelectAll();
             }
             else
             {
@@ -247,9 +266,11 @@ namespace SpacetimeDB.Editor
             bool isHidden = identityNewGroupBox.style.display == DisplayStyle.None;
             if (isHidden)
             {
-                // Show
+                // Show + UX: Focus the 1st field
                 identityNewGroupBox.style.display = DisplayStyle.Flex;
                 identityAddNewShowUiBtn.text = GetStyledStr(StringStyle.Success, "-"); // Show opposite, styled
+                identityNicknameTxt.Focus();
+                identityNicknameTxt.SelectAll();
             }
             else
             {
@@ -273,7 +294,7 @@ namespace SpacetimeDB.Editor
             
             _isFilePicking = false;
             
-            // Cancelled or same path?
+            // Canceled or same path?
             bool pathChanged = selectedPath == pathBefore;
             if (string.IsNullOrEmpty(selectedPath) || pathChanged)
                 return;
@@ -291,8 +312,7 @@ namespace SpacetimeDB.Editor
                 ? DisplayStyle.None 
                 : DisplayStyle.Flex;
         }
-
-        /// AKA AddIdentityBtnClick
+        
         private async void onIdentityAddBtnClickAsync()
         {
             string nickname = identityNicknameTxt.value;
@@ -353,24 +373,80 @@ namespace SpacetimeDB.Editor
             }
         }
 
+        private async void onCancelPublishBtnClick()
+        {
+            Debug.Log("Warning: Cancelling Publish...");
+
+            try
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+            }
+            catch (ObjectDisposedException e)
+            {
+                // Already disposed - np
+            }
+
+            // Hide UI: Progress bar, cancel btn
+            publishInstallProgressBar.style.display = DisplayStyle.None;
+            publishCancelBtn.style.display = DisplayStyle.None;
+
+            // Show UI: Canceled status, publish btn
+            publishStatusLabel.text = GetStyledStr(StringStyle.Error, "Canceled");
+            publishStatusLabel.style.display = DisplayStyle.Flex;
+            publishBtn.style.display = DisplayStyle.Flex;
+            
+            // Slight cooldown, then enable publish btn
+            publishBtn.SetEnabled(false);
+            await enableVisualElementInOneSec(publishBtn);
+        }
+
         /// Curried to an async Task, wrapped this way so
         /// we can unsubscribe and for better err handling 
         private async void onPublishBtnClickAsync()
         {
+            setPublishStartUi();
+            PublishServerModuleResult publishResult;
+
             try
             {
-                setPublishStartUi();
-                PublishServerModuleResult publishResult = await publish();
-                onPublishDone(publishResult);
+                publishResult = await publishAsync();
             }
             catch (Exception e)
             {
                 Debug.LogError($"CliError: {e}");
                 throw;
             }
+            finally
+            {
+                publishBtn.style.display = DisplayStyle.Flex;
+                publishCancelBtn.style.display = DisplayStyle.None;
+            }
+            
+            bool isSuccess = publishResult.IsSuccessfulPublish;
+            if (isSuccess)
+                onPublishSuccess(publishResult);
+            else
+                onPublishFail(publishResult);
         }
         #endregion // Direct UI Callbacks
 
+                
+        /// There may be a false-positive wasm-opt err here; in which case, we'd still run success 
+        private void onPublishSuccess(PublishServerModuleResult publishResult)
+        {
+            // Success - reset UI back to normal
+            setPublishReadyStatus();
+            setPublishResultGroupUi(publishResult);
+        }
+
+        /// Critical err - show label
+        private void onPublishFail(PublishServerModuleResult publishResult)
+        {
+            updatePublishStatus(StringStyle.Error, publishResult.StyledFriendlyErrorMessage 
+                ?? publishResult.CliError);
+        }
+        
         private void onAddServerFail(SpacetimeServer server, AddServerResult addServerResult)
         {
             serverAddBtn.SetEnabled(true);
@@ -407,18 +483,12 @@ namespace SpacetimeDB.Editor
             onGetSetIdentitiesSuccessEnsureDefault(new List<SpacetimeIdentity> { identity });
         }
 
-        /// Success: We still want to show the install button, but tweak it.
-        /// It'll hide next time we publish
-        private void onInstallWasmOptPackageViaNpmSuccess()
-        {
-            
+        /// Success: Show installed txt, keep button disabled, but don't actually check
+        /// the optimization box since *this* publishAsync is not optimized: Next one will be
+        private void onInstallWasmOptPackageViaNpmSuccess() =>
             installWasmOptBtn.text = GetStyledStr(StringStyle.Success, "Installed");
-            publishResultIsOptimizedBuildToggle.value = true;
-        }
 
-        private void onInstallWasmOptPackageViaNpmFail(SpacetimeCliResult cliResult)
-        {
+        private void onInstallWasmOptPackageViaNpmFail(SpacetimeCliResult cliResult) =>
             installWasmOptBtn.SetEnabled(false);
-        }
     }
 }

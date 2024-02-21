@@ -10,6 +10,9 @@ namespace SpacetimeDB.Editor
         /// (!) Sometimes, this may not even be a "real" error. Double check output!
         public string CliError { get; private set; }
         
+        /// Did we pass a CancellationToken and cancel the operation?
+        public bool Cancelled { get; private set; }
+        
         /// (!) While this may be a CLI error, it could be a false positive
         /// for what you really want to do. For example, `spacetime publish`
         /// will succeed, but throw a CliError for `wasm-opt` not found (unoptimized build).
@@ -20,6 +23,9 @@ namespace SpacetimeDB.Editor
         {
             this.CliOutput = cliOutput;
             this.CliError = cliError;
+
+            if (CliError == "Canceled")
+                this.Cancelled = true;
         }
     }
 }

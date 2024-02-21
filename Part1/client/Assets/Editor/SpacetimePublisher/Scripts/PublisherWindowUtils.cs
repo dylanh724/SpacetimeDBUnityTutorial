@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace SpacetimeDB.Editor
 {
@@ -57,6 +58,12 @@ namespace SpacetimeDB.Editor
             bool isHostValid = checkIsValidUrl(serverHostTxt.value);
             bool isNicknameValid = !string.IsNullOrWhiteSpace(serverNicknameTxt.value);
             serverAddBtn.SetEnabled(isNicknameValid && isHostValid);
+        }
+        
+        private void resetCancellationTokenSrc()
+        {
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
         }
     }
 }
