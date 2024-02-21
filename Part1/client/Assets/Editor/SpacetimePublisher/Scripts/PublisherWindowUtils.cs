@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using System.Threading;
+using UnityEngine;
 
 namespace SpacetimeDB.Editor
 {
@@ -64,6 +65,21 @@ namespace SpacetimeDB.Editor
         {
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
+        }
+
+        /// <returns>
+        /// dashified-project-name, suggested based on your project name.
+        /// Swaps out `client` keyword with `server`.</returns>
+        private string getSuggestedServerModuleName()
+        {
+            // Prefix "unity-", dashify the name, replace "client" with "server (if found).
+            // Use Unity's productName
+            string unityProjectName = $"unity-{Application.productName.ToLowerInvariant()}";
+            string projectNameDashed = Regex
+                .Replace(unityProjectName, @"[^a-z0-9]", "-")
+                .Replace("client", "server");
+
+            return projectNameDashed;
         }
     }
 }

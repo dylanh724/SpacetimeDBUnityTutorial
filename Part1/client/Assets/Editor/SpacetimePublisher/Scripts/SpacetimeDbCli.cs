@@ -209,15 +209,17 @@ namespace SpacetimeDB.Editor
             
         
         #region High Level CLI Actions
-        public static async Task<bool> CheckIsSpacetimeCliInstalledAsync()
+        /// isInstalled = !cliResult.HasCliError 
+        public static async Task<SpacetimeCliResult> GetIsSpacetimeCliInstalledAsync()
         {
             SpacetimeCliResult cliResult = await runCliCommandAsync("spacetime version");
 
+            // Info Logs
             bool isSpacetimeCliInstalled = !cliResult.HasCliErr;
             if (LOG_LEVEL == CliLogLevel.Info)
                 Debug.Log($"{nameof(isSpacetimeCliInstalled)}=={isSpacetimeCliInstalled}");
 
-            return isSpacetimeCliInstalled;
+            return cliResult;
         }
         
         /// Uses the `spacetime publish` CLI command, appending +args from UI elements

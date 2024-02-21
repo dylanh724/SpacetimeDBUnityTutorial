@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,12 +8,10 @@ using static SpacetimeDB.Editor.PublisherMeta;
 
 namespace SpacetimeDB.Editor
 {
-    /// While `PublisherWindowActions` is for indirect UI interaction,
-    /// Visual Element callbacks directly triggered from the UI via a user,
-    /// subscribed to @ PublisherWindowInit.setOnActionEvents.
-    /// OnButtonClick, FocusOut, OnChanged, etc.
+    /// Handles direct UI callbacks, sending async Tasks to PublisherWindowActions.
+    /// Subscribed to @ PublisherWindowInit.setOnActionEvents.
     /// Set @ setOnActionEvents(), unset at unsetActionEvents().
-    /// These actions trigger the middleware between the UI and CLI.
+    /// This is essentially the middleware between UI and logic.
     public partial class PublisherWindow
     {
         #region Init from PublisherWindowInit.cs CreateGUI()
@@ -137,7 +135,15 @@ namespace SpacetimeDB.Editor
             Debug.Log($"Selected server changed to {serverNickname} (from {evt.previousValue})");
             
             // Process via CLI => Set default, revalidate identities
-            await setDefaultServerRefreshIdentitiesAsync(serverNickname);
+            try
+            {
+                await setDefaultServerRefreshIdentitiesAsync(serverNickname);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
         }
         
         /// This is hidden, by default, until a first newIdentity is added
@@ -155,7 +161,15 @@ namespace SpacetimeDB.Editor
             
             // We changed from a known identity to another known one.
             // We should change the CLI default.
-            await setDefaultIdentityAsync(evt.newValue);
+            try
+            {
+                await setDefaultIdentityAsync(evt.newValue);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
         }
         
         /// Used for init only, for when the persistent ViewDataKey
@@ -212,16 +226,6 @@ namespace SpacetimeDB.Editor
         /// Curry to an async Task to install `wasm-opt` npm pkg
         private async void onInstallWasmOptBtnClick()
         {
-            // Set installing UI
-            publishBtn.SetEnabled(false);
-            installWasmOptBtn.SetEnabled(false);
-            installWasmOptBtn.text = GetStyledStr(StringStyle.Action, "Installing ...");
-            _ = startProgressBarAsync(
-                installWasmOptProgressBar,
-                barTitle: "Installing `wasm-opt` via npm ...",
-                autoHideOnComplete: false);
-            installCliProgressBar.style.display = DisplayStyle.Flex;
-
             try
             {
                 await installWasmOptPackageViaNpmAsync();
@@ -229,8 +233,6 @@ namespace SpacetimeDB.Editor
             catch (Exception e)
             {
                 Debug.LogError($"Error: {e.Message}");
-                installWasmOptBtn.text = GetStyledStr(StringStyle.Error, $"<b>Error:</b> {e.Message}");
-                installWasmOptBtn.SetEnabled(true);
                 throw;
             }
             finally
@@ -318,17 +320,6 @@ namespace SpacetimeDB.Editor
             string nickname = identityNicknameTxt.value;
             string email = identityEmailTxt.value;
             
-            // Sanity check
-            if (string.IsNullOrEmpty(nickname) || string.IsNullOrEmpty(email))
-                return;
-            
-            // UI: Disable btn + show installing status to id label
-            identityAddBtn.SetEnabled(false);
-            identityStatusLabel.text = GetStyledStr(StringStyle.Action, $"Adding {nickname} ...");
-            identityStatusLabel.style.display = DisplayStyle.Flex;
-            publishStatusLabel.style.display = DisplayStyle.None;
-            publishResultFoldout.style.display = DisplayStyle.None;
-            
             try
             {
                 await addIdentityAsync(nickname, email);
@@ -345,22 +336,6 @@ namespace SpacetimeDB.Editor
         {
             string nickname = serverNicknameTxt.value;
             string host = serverHostTxt.value;
-            
-            // Sanity check
-            if (string.IsNullOrEmpty(nickname) || string.IsNullOrEmpty(host))
-                return;
-            
-            // UI: Disable btn + show installing status to id label
-            serverAddBtn.SetEnabled(false);
-            serverStatusLabel.text = GetStyledStr(StringStyle.Action, $"Adding {nickname} ...");
-            serverStatusLabel.style.display = DisplayStyle.Flex;
-            
-            // Hide the other sections (while clearing out their labels), since we rely on servers
-            identityStatusLabel.style.display = DisplayStyle.None;
-            identityFoldout.style.display = DisplayStyle.None;
-            publishFoldout.style.display = DisplayStyle.None;
-            publishStatusLabel.style.display = DisplayStyle.None;
-            publishResultFoldout.style.display = DisplayStyle.None;
             
             try
             {
@@ -398,7 +373,16 @@ namespace SpacetimeDB.Editor
             
             // Slight cooldown, then enable publish btn
             publishBtn.SetEnabled(false);
-            await enableVisualElementInOneSec(publishBtn);
+
+            try
+            {
+                await enableVisualElementInOneSec(publishBtn);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
         }
 
         /// Curried to an async Task, wrapped this way so
@@ -406,56 +390,22 @@ namespace SpacetimeDB.Editor
         private async void onPublishBtnClickAsync()
         {
             setPublishStartUi();
-            PublishServerModuleResult publishResult;
-
+            
             try
             {
-                publishResult = await publishAsync();
+                await publishAsync();
             }
-            catch (Exception e)
+            catch (TaskCanceledException e)
             {
-                Debug.LogError($"CliError: {e}");
-                throw;
+                publishCancelBtn.SetEnabled(false);
             }
             finally
             {
-                publishBtn.style.display = DisplayStyle.Flex;
-                publishCancelBtn.style.display = DisplayStyle.None;
+                publishInstallProgressBar.style.display = DisplayStyle.None;
+                _cts?.Dispose();
             }
-            
-            bool isSuccess = publishResult.IsSuccessfulPublish;
-            if (isSuccess)
-                onPublishSuccess(publishResult);
-            else
-                onPublishFail(publishResult);
         }
         #endregion // Direct UI Callbacks
-
-                
-        /// There may be a false-positive wasm-opt err here; in which case, we'd still run success 
-        private void onPublishSuccess(PublishServerModuleResult publishResult)
-        {
-            // Success - reset UI back to normal
-            setPublishReadyStatus();
-            setPublishResultGroupUi(publishResult);
-        }
-
-        /// Critical err - show label
-        private void onPublishFail(PublishServerModuleResult publishResult)
-        {
-            updatePublishStatus(StringStyle.Error, publishResult.StyledFriendlyErrorMessage 
-                ?? publishResult.CliError);
-        }
-        
-        private void onAddServerFail(SpacetimeServer server, AddServerResult addServerResult)
-        {
-            serverAddBtn.SetEnabled(true);
-            serverStatusLabel.text = GetStyledStr(StringStyle.Error, 
-                $"<b>Failed:</b> Couldn't add `{server.Nickname}` server</b>\n" +
-                addServerResult.StyledFriendlyErrorMessage);
-                
-            serverStatusLabel.style.display = DisplayStyle.Flex;
-        }
 
         private void onAddIdentityFail(SpacetimeIdentity identity, AddIdentityResult addIdentityResult)
         {
@@ -465,14 +415,6 @@ namespace SpacetimeDB.Editor
                 addIdentityResult.StyledFriendlyErrorMessage);
                 
             identityStatusLabel.style.display = DisplayStyle.Flex;
-        }
-        
-        /// Success: Add to dropdown + set default + show. Hide the [+] add group.
-        /// Don't worry about caching choices; we'll get the new choices via CLI each load
-        private void onAddServerSuccess(SpacetimeServer server)
-        {
-            Debug.Log($"Add new server success: {server.Nickname}");
-            onGetSetServersSuccessEnsureDefault(new List<SpacetimeServer> { server });
         }
 
         /// Success: Add to dropdown + set default + show. Hide the [+] add group.
@@ -488,7 +430,11 @@ namespace SpacetimeDB.Editor
         private void onInstallWasmOptPackageViaNpmSuccess() =>
             installWasmOptBtn.text = GetStyledStr(StringStyle.Success, "Installed");
 
-        private void onInstallWasmOptPackageViaNpmFail(SpacetimeCliResult cliResult) =>
-            installWasmOptBtn.SetEnabled(false);
+        private void onInstallWasmOptPackageViaNpmFail(SpacetimeCliResult cliResult)
+        {
+            installWasmOptBtn.SetEnabled(true);
+            installWasmOptBtn.text = GetStyledStr(StringStyle.Error, 
+                $"<b>Failed:</b> Couldn't install wasm-opt\n{cliResult.CliError}");
+        }
     }
 }

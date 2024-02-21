@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -9,7 +10,7 @@ using static SpacetimeDB.Editor.PublisherMeta;
 namespace SpacetimeDB.Editor
 {
     /// Binds style and click events to the Spacetime Publisher Window
-    /// Note the dynamic init sequence logic @ loadDynamicUiInitSequence()
+    /// Note the dynamic init sequence logic @ initDynamicEventsFromPublisherWindow()
     public partial class PublisherWindow : EditorWindow
     {
         #region Operational State Vars
@@ -95,15 +96,17 @@ namespace SpacetimeDB.Editor
 
             // Fields set from here
             resetUi();
-            setOnActionEvents(); // @ PublisherWindowMiddleware.cs
-            await loadDynamicUiInitSequence();
-        }
+            setOnActionEvents(); // @ PublisherWindowCallbacks.cs
 
-        /// Installs CLI tool, shows identity dropdown, gets identities
-        private async Task loadDynamicUiInitSequence()
-        {
-            await ensureSpacetimeCliInstalledAsync();
-            await getServersSetDropdown();
+            try
+            {
+                await initDynamicEventsFromPublisherWindow(); // @ PublisherWindowActions
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error: {e}");
+                throw;
+            }
         }
 
         private void initVisualTreeStyles()
