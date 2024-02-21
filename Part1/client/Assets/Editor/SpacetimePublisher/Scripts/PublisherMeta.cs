@@ -35,7 +35,7 @@ namespace SpacetimeDB.Editor
         {
             return style switch
             {
-                StringStyle.Action => $"<color={ACTION_COLOR_HEX}><i>{str}</i></color>",
+                StringStyle.Action => $"<color={ACTION_COLOR_HEX}>{str}</color>",
                 StringStyle.Error => $"<color={ERROR_COLOR_HEX}>{str}</color>",
                 StringStyle.Success => $"<color={SUCCESS_COLOR_HEX}>{str}</color>",
             };

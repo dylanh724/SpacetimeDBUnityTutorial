@@ -4,10 +4,6 @@
         <ui:VisualElement name="header" style="height: 66px; width: auto;">
             <ui:Button parse-escape-sequences="true" display-tooltip-when-elided="true" name="topBannerBtn" tooltip="Open Docs" style="background-image: url(&apos;project://database/Assets/Editor/SpacetimePublisher/Sprites/spacetime-logo-full.png?fileID=2800000&amp;guid=8e8298ff06b7be441bce715299b63855&amp;type=3#spacetime-logo-full&apos;); background-color: rgba(88, 88, 88, 0); flex-shrink: 1; flex-grow: 1; -unity-background-scale-mode: scale-to-fit;" />
         </ui:VisualElement>
-        <ui:GroupBox name="installCliGroupBox">
-            <ui:ProgressBar value="5" title="Running CLI..." name="installCliProgressBar" tooltip="Allows for the `spacetime` CLI command" low-value="5" style="display: flex;" />
-            <ui:Label tabindex="-1" text="{installCliStatusTxt}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="installCliStatusLabel" style="color: rgb(182, 192, 207); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
-        </ui:GroupBox>
         <ui:VisualElement name="spacer15" style="height: 15px;" />
         <ui:VisualElement name="body" style="flex-grow: 1; height: 94px;">
             <ui:Foldout text="&lt;b&gt;Server&lt;/b&gt;" name="serverFoldout" view-data-key="serverFoldout" value="true" style="display: flex; -unity-font-style: normal;">
@@ -23,6 +19,10 @@
                 </ui:GroupBox>
             </ui:Foldout>
             <ui:VisualElement name="spacer10" style="height: 10px;" />
+            <ui:GroupBox name="installCliGroupBox">
+                <ui:ProgressBar value="5" title="Running CLI..." name="installCliProgressBar" tooltip="Allows for the `spacetime` CLI command" low-value="5" style="display: flex;" />
+                <ui:Label tabindex="-1" text="{installCliStatusTxt}" parse-escape-sequences="true" display-tooltip-when-elided="true" name="installCliStatusLabel" style="color: rgb(182, 192, 207); font-size: 14px; -unity-text-align: upper-center; display: flex; white-space: normal; -unity-font-style: normal;" />
+            </ui:GroupBox>
             <ui:Foldout text="&lt;b&gt;Identity&lt;/b&gt;" name="identityFoldout" view-data-key="identityFoldout" value="true" style="display: flex; -unity-font-style: normal;">
                 <ui:VisualElement name="selectedIdentityHoriz" style="flex-grow: 1; flex-direction: row;">
                     <ui:DropdownField label="Selected Identity" index="-1" choices="System.Collections.Generic.List`1[System.String]" name="identitySelectedDropdown" tooltip="This will change between target server hosts" style="flex-grow: 1;" />
