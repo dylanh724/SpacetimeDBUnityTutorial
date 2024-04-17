@@ -1,0 +1,3 @@
+[submodule "Part1/client/Packages/com.clockworklabs.spacetimedbsdk"]
+	path = Part1/client/Packages/com.clockworklabs.spacetimedbsdk
+	url = https://github.com/clockworklabs/com.clockworklabs.spacetimedbsdk
